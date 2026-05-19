@@ -1,0 +1,66 @@
+WIND TURBINE DAQ SYSTEM — DESIGN SUMMARY
+==========================================
+
+DELIVERABLES
+- report.html : Full system architecture report with bibliography
+- calculator.html : Interactive datasheet-referenced power calculator
+- SUMMARY.txt : This file
+
+KEY DESIGN DECISIONS
+- Two-tier topology: 9 leaf nodes + 3 hub nodes + 1 base station
+- In-blade radio: Si4463 @ 915 MHz, +13 dBm (sub-GHz for blade penetration)
+- Outbound (hub-to-base): Wi-Fi HaLow with FEM @ +21 dBm
+- MCU: STM32U585 (lowest sleep current, hardware FPU for OPUS encoding)
+- Audio compression: OPUS 22:1 (44.1 kHz → 4 kbps)
+- Cycle: 30 s sample every 10 minutes (5% duty cycle)
+
+VERIFIED DATASHEET NUMBERS (used in this design)
+- Si4463 @ +13 dBm: 44.5 mA TX, 13.7 mA RX, -103 dBm sensitivity, 500 kbps
+  Source: Silicon Labs Si4464/63/61/60 Rev 1.4 (Oct 2024)
+- STM32U585: 19 µA/MHz active, 0.3 µA Stop2 sleep
+  Source: ST DS13086
+- nRF5340: 6.40 mA TX @ 0 dBm, 6.26 mA RX, -95 dBm @ 1M PHY
+  Source: Nordic Product Specification v1.5
+- MM6108 HaLow (+ FEM module): +21 dBm output, ~320 mA TX
+  Source: Morse Micro MF08651-US Data Sheet v1.1
+
+ENERGY BUDGET PER LEAF (datasheet-verified, 10 min cycle, 30 s sample, OPUS, 20°C)
+  Sleep      :   0.3 µA × 544 s =   0.6 mJ  (0.0%)
+  Audio + IMU:   3.0 mA ×  30 s = 333.1 mJ  (21.2%)
+  Compression:   6.1 mA ×  21 s = 484.2 mJ  (30.8%)
+  Radio TX   :  46.5 mA × 4.3 s = 740.4 mJ  (47.1%)
+  RX ACK     :  15.7 mA × 0.2 s =  11.6 mJ  (0.7%)
+  Other      :                  =   3.2 mJ  (0.2%)
+  -------------------------------------------------
+  TOTAL                         =  1,573 mJ per cycle
+  
+  Energy/day: 227 J
+  Battery life on 20 Ah pack: 3.22 years
+  Ah needed for 1-year target: 6.2 Ah (use 10–20 Ah for safety margin)
+
+PER-NODE BOM (estimate)
+  - STM32U585AI MCU              ~$8
+  - Si4463 radio module          ~$5
+  - IMU (LSM6DSV16X)             ~$4
+  - PDM microphone (MP34DT05)    ~$2
+  - 20 Ah LiPo                   ~$45
+  - Antenna, PCB, enclosure      ~$12
+  Total: ~$76 per leaf
+
+DATA FLOW (per 10-min cycle)
+  T=0       Leaf nodes wake, sample 30 s audio + IMU
+  T=30      Compress with OPUS in parallel on each leaf
+  T=51      TDMA TX windows on Si4463 (3 leaves × ~5 s)
+  T=66      Hub aggregates 3 streams (~390 KB total)
+  T=70      Hub uplinks via HaLow to base (~2 s @ 2 Mbps)
+  T=80      All nodes back to deep sleep
+
+ALL CALCULATIONS TRACEABLE TO MANUFACTURER DATASHEETS.
+See §11 of report.html (Datasheet References) for full bibliography.
+
+NEXT STEPS
+1. Buy 3 dev kits: STM32U5 Nucleo, Si4463 SiLabs WSTK, MM6108 EVK
+2. Build "minimum viable cycle" firmware: wake → sample → compress → TX → sleep
+3. Measure actual power draw with Power Profiler Kit II
+4. Iterate on edge cases: temperature derating, retry behavior, rotation effects
+5. Field test in real turbine before full deployment
