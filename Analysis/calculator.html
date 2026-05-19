@@ -1,0 +1,1592 @@
+Put your HTML text here<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WT-DAQ Power Calculator v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f5f1e8;
+    --cream: #ebe5d4;
+    --rust: #b54a2c;
+    --moss: #4a6b3a;
+    --slate: #2c3e50;
+    --gold: #c89d3a;
+    --line: rgba(26,26,26,0.15);
+    --line-strong: rgba(26,26,26,0.4);
+    --muted: rgba(26,26,26,0.6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter Tight', sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  
+  /* Top banner — summary always visible */
+  .top-summary {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px 32px;
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 2px solid var(--rust);
+  }
+  .top-row { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .top-title {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 18px;
+  }
+  .top-title-sub {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: rgba(245,241,232,0.5); margin-bottom: 4px;
+  }
+  .top-results {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: 32px;
+    flex: 1; justify-content: flex-end;
+  }
+  @media (max-width: 1000px) { .top-results { grid-template-columns: repeat(2, 1fr); } }
+  .top-result {
+    display: flex; flex-direction: column;
+    align-items: flex-end;
+  }
+  .top-result .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(245,241,232,0.6); margin-bottom: 4px;
+  }
+  .top-result .val {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 22px; line-height: 1;
+  }
+  .top-result .u { font-size: 11px; color: rgba(245,241,232,0.5); margin-top: 2px; }
+  .top-result.good .val { color: #7cb342; }
+  .top-result.warn .val { color: #ffb74d; }
+  .top-result.bad .val { color: #ff7043; }
+
+  /* Status row below top summary */
+  .status-row {
+    background: var(--cream);
+    padding: 12px 32px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+  }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .status-pill::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+  }
+  .status-pill.good { background: rgba(74,107,58,0.15); color: var(--moss); }
+  .status-pill.good::before { background: var(--moss); }
+  .status-pill.warn { background: rgba(200,157,58,0.18); color: #8b6f1c; }
+  .status-pill.warn::before { background: var(--gold); }
+  .status-pill.bad { background: rgba(181,74,44,0.15); color: var(--rust); }
+  .status-pill.bad::before { background: var(--rust); }
+  
+  /* Preset header */
+  .preset-bar {
+    background: var(--paper);
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .preset-bar-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted);
+    margin-right: 12px;
+  }
+  .preset-btn {
+    font-family: 'Inter Tight', sans-serif; font-size: 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--line-strong);
+    background: var(--paper); color: var(--ink);
+    border-radius: 6px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { background: var(--cream); }
+  .preset-btn.active {
+    background: var(--ink); color: var(--paper);
+    border-color: var(--ink);
+  }
+  .preset-btn.worst {
+    border-color: var(--rust); color: var(--rust);
+  }
+  .preset-btn.worst.active {
+    background: var(--rust); color: var(--paper);
+  }
+  
+  /* Tabs for leaf/hub */
+  .tab-bar {
+    background: var(--paper);
+    padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 0;
+  }
+  .tab {
+    padding: 14px 24px;
+    font-family: 'Inter Tight', sans-serif; font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--rust);
+  }
+  .tab:hover { color: var(--ink); }
+  
+  /* Main */
+  main {
+    padding: 32px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  
+  h2 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 22px; letter-spacing: -0.01em;
+    margin: 0 0 16px;
+  }
+  h3 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 17px;
+    margin: 32px 0 12px;
+  }
+  
+  /* Card style */
+  .card {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card-head {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 16px;
+  }
+  .card-sub {
+    font-size: 12px; color: var(--muted);
+  }
+  
+  /* Layout split */
+  .split {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+  
+  .chart-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 1200px) { .chart-row-3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 700px) { .chart-row-3 { grid-template-columns: 1fr; } }
+  
+  .chart-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .chart-row-2 { grid-template-columns: 1fr; } }
+  
+  /* Controls */
+  .ctrl-group {
+    margin-bottom: 14px;
+  }
+  .ctrl-label {
+    display: flex; justify-content: space-between;
+    font-size: 13px; margin-bottom: 6px;
+  }
+  .ctrl-label .val {
+    font-family: 'JetBrains Mono', monospace; font-weight: 500;
+    color: var(--rust);
+  }
+  
+  input[type=range] {
+    width: 100%; height: 4px; -webkit-appearance: none;
+    background: rgba(26,26,26,0.15); border-radius: 2px;
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--rust); cursor: pointer;
+    border: 2px solid var(--paper);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--rust); cursor: pointer;
+    border: 2px solid var(--paper);
+  }
+  
+  input[type=number].mini {
+    width: 70px; padding: 4px 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--paper);
+    border-radius: 4px;
+    text-align: right;
+  }
+  input[type=number].mini:focus {
+    outline: none; border-color: var(--rust);
+  }
+  
+  .opts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .opts.single { grid-template-columns: 1fr; }
+  .opts.three { grid-template-columns: repeat(3, 1fr); }
+  .opt {
+    font-family: 'Inter Tight', sans-serif; font-size: 12px;
+    padding: 8px 6px;
+    border: 1px solid var(--line);
+    background: var(--paper); color: var(--ink);
+    border-radius: 6px; cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .opt:hover { background: rgba(26,26,26,0.04); }
+  .opt.sel {
+    background: var(--ink); color: var(--paper);
+    border-color: var(--ink); font-weight: 500;
+  }
+  
+  .ctrl-section-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--rust); margin-bottom: 12px;
+    margin-top: 20px;
+  }
+  .ctrl-section-title:first-child { margin-top: 0; }
+  
+  /* Phase editor */
+  .phase-editor {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .phase-editor th {
+    text-align: left;
+    padding: 8px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 400;
+    border-bottom: 1px solid var(--line);
+  }
+  .phase-editor td {
+    padding: 6px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .phase-editor td.name { font-weight: 500; min-width: 110px; }
+  .phase-editor td.bar-col { width: 25%; }
+  .phase-editor input.phase-input {
+    width: 60px; padding: 4px 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 3px;
+    text-align: right;
+  }
+  .phase-editor input.phase-input:focus {
+    outline: none; border-color: var(--rust);
+    background: white;
+  }
+  .phase-editor input.phase-input.modified {
+    border-color: var(--gold);
+    background: rgba(200,157,58,0.05);
+  }
+  .phase-bar {
+    height: 10px;
+    background: rgba(26,26,26,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .phase-bar-fill {
+    height: 100%;
+  }
+  .phase-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .phase-energy { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; }
+  
+  .phase-reset {
+    font-size: 11px;
+    color: var(--rust);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+  
+  /* Metric cards */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .metric {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .metric .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .metric .v {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 24px; line-height: 1;
+  }
+  .metric .u { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .metric.good { background: rgba(74,107,58,0.06); border-color: rgba(74,107,58,0.3); }
+  .metric.warn { background: rgba(200,157,58,0.07); border-color: rgba(200,157,58,0.3); }
+  .metric.bad { background: rgba(181,74,44,0.06); border-color: rgba(181,74,44,0.3); }
+  
+  /* Breakdown rows */
+  .breakdown-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 100px 60px;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line);
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row .name { font-weight: 500; }
+  .breakdown-row .bar {
+    height: 8px; background: rgba(26,26,26,0.06);
+    border-radius: 2px; overflow: hidden;
+  }
+  .breakdown-row .bar > div { height: 100%; }
+  .breakdown-row .val {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+  }
+  .breakdown-row .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    text-align: right;
+  }
+  
+  /* Chart wrapper */
+  .chart-wrap {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chart-wrap.tall { padding: 16px; }
+  .chart-wrap-title {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .chart-wrap-sub {
+    font-size: 11px; color: var(--muted); margin-bottom: 12px;
+  }
+  .chart-canvas { position: relative; height: 220px; }
+  .chart-canvas.med { height: 280px; }
+  .chart-canvas.tall { height: 340px; }
+  
+  /* Hide non-active tab panels */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  
+  /* Constraints check */
+  .constraint-check {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .constraint {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+  }
+  .constraint.pass { border-color: rgba(74,107,58,0.4); background: rgba(74,107,58,0.04); }
+  .constraint.fail { border-color: rgba(181,74,44,0.4); background: rgba(181,74,44,0.05); }
+  .constraint-icon {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: white; font-weight: 700;
+  }
+  .constraint.pass .constraint-icon { background: var(--moss); }
+  .constraint.fail .constraint-icon { background: var(--rust); }
+  .constraint-result {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  
+  /* Footer */
+  footer {
+    padding: 20px 32px;
+    border-top: 1px solid var(--line);
+    background: var(--cream);
+    font-size: 12px; color: var(--muted);
+    text-align: center;
+  }
+  
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sticky top: leaf and hub summary -->
+<div class="top-summary">
+  <div class="top-row">
+    <div>
+      <div class="top-title-sub">WT-DAQ Power Calculator · v2</div>
+      <div class="top-title">Leaf &amp; hub life estimation</div>
+    </div>
+    <div class="top-results">
+      <div class="top-result" id="topLeafLife">
+        <div class="lbl">Leaf battery life</div>
+        <div class="val">—</div>
+        <div class="u">at selected pack</div>
+      </div>
+      <div class="top-result" id="topLeafAh">
+        <div class="lbl">Leaf for 1 year</div>
+        <div class="val">—</div>
+        <div class="u">Ah needed</div>
+      </div>
+      <div class="top-result" id="topHubLife">
+        <div class="lbl">Hub battery life</div>
+        <div class="val">—</div>
+        <div class="u">at selected pack</div>
+      </div>
+      <div class="top-result" id="topHubAh">
+        <div class="lbl">Hub for 1 year</div>
+        <div class="val">—</div>
+        <div class="u">Ah needed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status pills -->
+<div class="status-row" id="statusRow"></div>
+
+<!-- Presets -->
+<div class="preset-bar">
+  <span class="preset-bar-label">Presets</span>
+  <button class="preset-btn active" data-preset="recommended">Recommended</button>
+  <button class="preset-btn" data-preset="nrf">nRF5340 + BLE</button>
+  <button class="preset-btn" data-preset="esp32">ESP32-S3 + HaLow</button>
+  <button class="preset-btn" data-preset="conservative">Conservative</button>
+  <button class="preset-btn worst" data-preset="worst_cold">Worst: Cold Climate</button>
+  <button class="preset-btn worst" data-preset="worst_dense">Worst: High Sampling</button>
+  <button class="preset-btn worst" data-preset="worst_combined">Worst: Combined Stress</button>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" data-tab="leaf">Leaf Node</button>
+  <button class="tab" data-tab="hub">Hub Node</button>
+  <button class="tab" data-tab="system">System Total</button>
+</div>
+
+<main>
+
+<!-- LEAF TAB -->
+<div class="tab-panel active" id="tab-leaf">
+  
+  <div class="split">
+    <!-- Left: leaf controls -->
+    <div class="card">
+      <h2>Leaf node configuration</h2>
+      
+      <div class="ctrl-section-title">MCU</div>
+      <div class="opts" id="leafMcuOpts">
+        <button class="opt" data-mcu="esp32s3">ESP32-S3</button>
+        <button class="opt" data-mcu="nrf5340">nRF5340</button>
+        <button class="opt sel" data-mcu="stm32u5">STM32U5</button>
+        <button class="opt" data-mcu="samd21">SAMD21-L</button>
+      </div>
+      
+      <div class="ctrl-section-title">Radio (in-blade link)</div>
+      <div class="opts single" id="leafRadioOpts">
+        <button class="opt" data-radio="ble_native">BLE 5 native (1M PHY)</button>
+        <button class="opt" data-radio="ble_coded">BLE 5 Coded S=8</button>
+        <button class="opt" data-radio="nrf24">nRF24L01+ (2.4 GHz)</button>
+        <button class="opt sel" data-radio="si4463_500">Si4463 @ 500 kbps</button>
+        <button class="opt" data-radio="si4463_1m">Si4463 @ 1 Mbps</button>
+        <button class="opt" data-radio="lora">LoRa SX1262</button>
+      </div>
+      
+      <div class="ctrl-section-title">Cycle &amp; sampling</div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Cycle interval</span><span class="val" id="vCycle">10 min</span></div>
+        <input type="range" id="iCycle" min="1" max="180" step="1" value="10">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Sample duration</span><span class="val" id="vSample">30 s</span></div>
+        <input type="range" id="iSample" min="5" max="300" step="5" value="30">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Audio sample rate</span><span class="val" id="vRate">44.1 kHz</span></div>
+        <input type="range" id="iRate" min="0" max="3" step="1" value="3">
+      </div>
+      
+      <div class="ctrl-section-title">Compression</div>
+      <div class="opts" id="compOpts">
+        <button class="opt" data-comp="none">None (raw)</button>
+        <button class="opt" data-comp="adpcm">ADPCM 4:1</button>
+        <button class="opt sel" data-comp="opus">OPUS 22:1</button>
+        <button class="opt" data-comp="flac">FLAC 2:1</button>
+      </div>
+      
+      <div class="ctrl-section-title">Battery &amp; environment</div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Leaf battery pack</span><span class="val" id="vBatt">20,000 mAh</span></div>
+        <input type="range" id="iBatt" min="1000" max="80000" step="1000" value="20000">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Operating temperature</span><span class="val" id="vTemp">+20 °C</span></div>
+        <input type="range" id="iTemp" min="-40" max="40" step="5" value="20">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Energy harvesting</span><span class="val" id="vHarv">0 mW</span></div>
+        <input type="range" id="iHarv" min="0" max="200" step="5" value="0">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Self-discharge</span><span class="val" id="vSelfD">2 %/yr</span></div>
+        <input type="range" id="iSelfD" min="0" max="15" step="1" value="2">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Retry/retransmit factor</span><span class="val" id="vRetry">1.0×</span></div>
+        <input type="range" id="iRetry" min="10" max="50" step="1" value="10">
+      </div>
+    </div>
+    
+    <!-- Right: phase editor + metrics -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Leaf node — energy summary</div>
+            <div class="card-sub">Per cycle and per year</div>
+          </div>
+        </div>
+        <div class="metrics-grid" id="leafMetrics"></div>
+      </div>
+      
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Phase-by-phase breakdown — editable</div>
+            <div class="card-sub">Modify any current or duration value. Modified cells show a gold border. <button class="phase-reset" id="resetLeafPhases">Reset to defaults</button></div>
+          </div>
+        </div>
+        <table class="phase-editor" id="leafPhaseTable">
+          <thead>
+            <tr>
+              <th>Phase</th>
+              <th>Current (mA)</th>
+              <th>Duration (s)</th>
+              <th>Energy</th>
+              <th class="bar-col">% of total</th>
+            </tr>
+          </thead>
+          <tbody id="leafPhaseBody"></tbody>
+        </table>
+      </div>
+      
+      <div class="chart-row-2">
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">Energy by category</div>
+          <div class="chart-wrap-sub">Sensing vs compute vs radio vs sleep</div>
+          <div class="chart-canvas"><canvas id="leafCategoryChart"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">Current draw timeline</div>
+          <div class="chart-wrap-sub">Current vs time within one cycle</div>
+          <div class="chart-canvas"><canvas id="leafTimelineChart"></canvas></div>
+        </div>
+      </div>
+      
+      <div class="chart-row-2" style="margin-top: 16px;">
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">MCU comparison (current radio &amp; settings)</div>
+          <div class="chart-wrap-sub">Energy per cycle, all 4 MCUs side-by-side</div>
+          <div class="chart-canvas"><canvas id="leafMcuCompare"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">Radio comparison (current MCU &amp; settings)</div>
+          <div class="chart-wrap-sub">Energy per cycle, all 6 radios side-by-side</div>
+          <div class="chart-canvas"><canvas id="leafRadioCompare"></canvas></div>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-top: 16px;">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Battery life vs cycle interval</div>
+            <div class="card-sub">How duty cycle affects leaf life under current configuration. Dashed line: 1-year target.</div>
+          </div>
+        </div>
+        <div class="chart-canvas med"><canvas id="leafCycleChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HUB TAB -->
+<div class="tab-panel" id="tab-hub">
+  <div class="split">
+    <div class="card">
+      <h2>Hub node configuration</h2>
+      
+      <div class="ctrl-section-title">Hub MCU</div>
+      <div class="opts" id="hubMcuOpts">
+        <button class="opt" data-mcu="esp32s3">ESP32-S3</button>
+        <button class="opt" data-mcu="nrf5340">nRF5340</button>
+        <button class="opt sel" data-mcu="stm32u5">STM32U5</button>
+        <button class="opt" data-mcu="samd21">SAMD21-L</button>
+      </div>
+      
+      <div class="ctrl-section-title">Inbound radio (from leaves)</div>
+      <div class="opts single" id="hubInOpts">
+        <button class="opt" data-in="ble_native">BLE 5 native (1M)</button>
+        <button class="opt" data-in="ble_coded">BLE 5 Coded S=8</button>
+        <button class="opt" data-in="nrf24">nRF24L01+</button>
+        <button class="opt sel" data-in="si4463_500">Si4463 @ 500 kbps</button>
+        <button class="opt" data-in="si4463_1m">Si4463 @ 1 Mbps</button>
+        <button class="opt" data-in="lora">LoRa SX1262</button>
+      </div>
+      
+      <div class="ctrl-section-title">Outbound protocol (to base)</div>
+      <div class="opts single" id="hubOutOpts">
+        <button class="opt sel" data-out="halow">Wi-Fi HaLow (900 MHz)</button>
+        <button class="opt" data-out="lora">LoRa SX1262 (long-range)</button>
+        <button class="opt" data-out="wifi24">Wi-Fi 2.4 GHz</button>
+        <button class="opt" data-out="cellular_lte">Cellular LTE-M</button>
+        <button class="opt" data-out="cellular_nb">Cellular NB-IoT</button>
+        <button class="opt" data-out="lorawan">LoRaWAN</button>
+        <button class="opt" data-out="bt_lr">Bluetooth Long Range</button>
+        <button class="opt" data-out="ethernet">Wired (slip-ring/PoE)</button>
+      </div>
+      
+      <div class="ctrl-section-title">Hub operating parameters</div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Inbound RX window per cycle</span><span class="val" id="vHubRx">15 s</span></div>
+        <input type="range" id="iHubRx" min="5" max="120" step="1" value="15">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Aggregation processing time</span><span class="val" id="vHubAgg">3 s</span></div>
+        <input type="range" id="iHubAgg" min="0" max="30" step="1" value="3">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Hub battery pack</span><span class="val" id="vHubBatt">80,000 mAh</span></div>
+        <input type="range" id="iHubBatt" min="10000" max="300000" step="5000" value="80000">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Hub energy harvesting</span><span class="val" id="vHubHarv">0 mW</span></div>
+        <input type="range" id="iHubHarv" min="0" max="500" step="10" value="0">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>Outbound link-up overhead</span><span class="val" id="vHubLU">2 s</span></div>
+        <input type="range" id="iHubLU" min="0" max="20" step="1" value="2">
+      </div>
+    </div>
+    
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Hub node — energy summary</div>
+            <div class="card-sub">Per cycle and per year</div>
+          </div>
+        </div>
+        <div class="metrics-grid" id="hubMetrics"></div>
+      </div>
+      
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Phase-by-phase breakdown — editable</div>
+            <div class="card-sub">Modify any current or duration value. <button class="phase-reset" id="resetHubPhases">Reset to defaults</button></div>
+          </div>
+        </div>
+        <table class="phase-editor" id="hubPhaseTable">
+          <thead>
+            <tr>
+              <th>Phase</th>
+              <th>Current (mA)</th>
+              <th>Duration (s)</th>
+              <th>Energy</th>
+              <th class="bar-col">% of total</th>
+            </tr>
+          </thead>
+          <tbody id="hubPhaseBody"></tbody>
+        </table>
+      </div>
+      
+      <div class="chart-row-2">
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">Energy by category</div>
+          <div class="chart-wrap-sub">Inbound RX, processing, outbound TX, sleep</div>
+          <div class="chart-canvas"><canvas id="hubCategoryChart"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-wrap-title">Outbound protocol comparison</div>
+          <div class="chart-wrap-sub">Energy per cycle for each outbound option</div>
+          <div class="chart-canvas"><canvas id="hubOutCompare"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SYSTEM TAB -->
+<div class="tab-panel" id="tab-system">
+  <div class="card">
+    <h2>Whole turbine — 9 leaves + 3 hubs</h2>
+    <div class="metrics-grid" id="systemMetrics"></div>
+  </div>
+  
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Design constraint check</div>
+        <div class="card-sub">Pass/fail against the operational requirements</div>
+      </div>
+    </div>
+    <div class="constraint-check" id="constraintCheck"></div>
+  </div>
+  
+  <div class="chart-row-2">
+    <div class="chart-wrap">
+      <div class="chart-wrap-title">Annual energy by node role</div>
+      <div class="chart-wrap-sub">Total joules consumed per year, leaf vs hub</div>
+      <div class="chart-canvas med"><canvas id="systemEnergyChart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-wrap-title">Battery requirement per year</div>
+      <div class="chart-wrap-sub">Required Ah by node, with current settings</div>
+      <div class="chart-canvas med"><canvas id="systemAhChart"></canvas></div>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top: 16px;">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Data flow timeline (one cycle)</div>
+        <div class="card-sub">When each node is active during a single 10-minute window</div>
+      </div>
+    </div>
+    <div class="chart-canvas tall"><canvas id="timelineChart"></canvas></div>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>All values derived from manufacturer datasheets · Edit any cell in the phase tables to model custom scenarios · Worst-case presets stack realistic adverse conditions · Validate against bench measurements before production deployment</p>
+</footer>
+
+<script>
+const V = 3.7;
+
+// MCU profile defaults
+const MCUS = {
+  esp32s3:  { name: 'ESP32-S3', sleep_uA: 10, boot_mA: 130, boot_s: 1.5, audio_mA: 130, flash_mA: 120, flash_s: 2, comp_factor: 1.0, comp_mA: 145, shut_mA: 100, shut_s: 2 },
+  nrf5340:  { name: 'nRF5340',  sleep_uA: 2,  boot_mA: 5,   boot_s: 0.05, audio_mA: 8,   flash_mA: 6,   flash_s: 1.5, comp_factor: 2.2, comp_mA: 35,  shut_mA: 5,   shut_s: 0.5 },
+  stm32u5:  { name: 'STM32U5',  sleep_uA: 0.3,boot_mA: 0.5, boot_s: 0.01, audio_mA: 5,   flash_mA: 4,   flash_s: 1,   comp_factor: 1.9, comp_mA: 25,  shut_mA: 2,   shut_s: 0.3 },
+  samd21:   { name: 'SAMD21-L', sleep_uA: 1.5,boot_mA: 3,   boot_s: 0.02, audio_mA: 6,   flash_mA: 5,   flash_s: 1.2, comp_factor: 2.8, comp_mA: 20,  shut_mA: 3,   shut_s: 0.3 }
+};
+
+const RADIOS = {
+  ble_native:  { name: 'BLE 5 native 1M', eff_kbps: 600, current_mA: 7,  rx_mA: 6,   idle_mA: 0.5,   sens_dBm: -95,  freq: 'GHz',     mcu_overhead_mA: 2 },
+  ble_coded:   { name: 'BLE 5 Coded S=8', eff_kbps: 60,  current_mA: 7,  rx_mA: 6,   idle_mA: 0.5,   sens_dBm: -103, freq: 'GHz',     mcu_overhead_mA: 2 },
+  nrf24:       { name: 'nRF24L01+',       eff_kbps: 1000, current_mA: 11, rx_mA: 13,  idle_mA: 0.4,   sens_dBm: -94,  freq: 'GHz',     mcu_overhead_mA: 1 },
+  si4463_500:  { name: 'Si4463 500k',     eff_kbps: 280, current_mA: 18, rx_mA: 10,  idle_mA: 0.001, sens_dBm: -103, freq: 'sub-GHz', mcu_overhead_mA: 3 },
+  si4463_1m:   { name: 'Si4463 1M',       eff_kbps: 500, current_mA: 18, rx_mA: 10,  idle_mA: 0.001, sens_dBm: -97,  freq: 'sub-GHz', mcu_overhead_mA: 3 },
+  lora:        { name: 'LoRa SX1262',     eff_kbps: 5,   current_mA: 20, rx_mA: 5,   idle_mA: 0.002, sens_dBm: -137, freq: 'sub-GHz', mcu_overhead_mA: 3 }
+};
+
+// Outbound (hub-to-base) protocols
+const OUTBOUND = {
+  halow:        { name: 'Wi-Fi HaLow',       eff_kbps: 2000, current_mA: 300, idle_mA: 8,    overhead_s: 2,   range_m: 1000, name_short: 'HaLow' },
+  lora:         { name: 'LoRa SX1262',       eff_kbps: 50,   current_mA: 120, idle_mA: 0.002,overhead_s: 5,   range_m: 5000, name_short: 'LoRa' },
+  wifi24:       { name: 'Wi-Fi 2.4 GHz',     eff_kbps: 20000, current_mA: 350, idle_mA: 80,   overhead_s: 4,   range_m: 100,  name_short: 'WiFi 2.4' },
+  cellular_lte: { name: 'Cellular LTE-M',    eff_kbps: 300,  current_mA: 450, idle_mA: 5,    overhead_s: 8,   range_m: 999,  name_short: 'LTE-M' },
+  cellular_nb:  { name: 'Cellular NB-IoT',   eff_kbps: 50,   current_mA: 220, idle_mA: 3,    overhead_s: 12,  range_m: 999,  name_short: 'NB-IoT' },
+  lorawan:      { name: 'LoRaWAN',           eff_kbps: 5,    current_mA: 130, idle_mA: 0.002,overhead_s: 3,   range_m: 5000, name_short: 'LoRaWAN' },
+  bt_lr:        { name: 'BT 5 Long Range',   eff_kbps: 60,   current_mA: 10,  idle_mA: 0.5,  overhead_s: 1,   range_m: 400,  name_short: 'BT LR' },
+  ethernet:     { name: 'Wired backhaul',    eff_kbps: 100000, current_mA: 80,  idle_mA: 30,   overhead_s: 0.5, range_m: 999, name_short: 'Wired' }
+};
+
+const RATES = [
+  { name: '8 kHz',    raw_kB_per_s: 16 },
+  { name: '16 kHz',   raw_kB_per_s: 32 },
+  { name: '22.05 kHz', raw_kB_per_s: 44 },
+  { name: '44.1 kHz', raw_kB_per_s: 88 }
+];
+
+const COMPS = {
+  none:  { name: 'None',  ratio: 1,  comp_time_factor: 0 },
+  adpcm: { name: 'ADPCM', ratio: 4,  comp_time_factor: 0.3 },
+  opus:  { name: 'OPUS',  ratio: 22, comp_time_factor: 1.0 },
+  flac:  { name: 'FLAC',  ratio: 2,  comp_time_factor: 0.6 }
+};
+
+const PRESETS = {
+  recommended: { leafMcu:'stm32u5', leafRadio:'si4463_500', cycle:10, sample:30, rate:3, comp:'opus', batt:20000, temp:20, harv:0, selfD:2, retry:10,
+                 hubMcu:'stm32u5', hubIn:'si4463_500', hubOut:'halow', hubRx:15, hubAgg:3, hubBatt:80000, hubHarv:0, hubLU:2 },
+  nrf:         { leafMcu:'nrf5340', leafRadio:'ble_coded', cycle:10, sample:30, rate:3, comp:'opus', batt:20000, temp:20, harv:0, selfD:2, retry:10,
+                 hubMcu:'nrf5340', hubIn:'ble_coded', hubOut:'halow', hubRx:60, hubAgg:3, hubBatt:80000, hubHarv:0, hubLU:2 },
+  esp32:       { leafMcu:'esp32s3', leafRadio:'ble_native', cycle:10, sample:30, rate:3, comp:'opus', batt:20000, temp:20, harv:0, selfD:2, retry:10,
+                 hubMcu:'esp32s3', hubIn:'ble_native', hubOut:'halow', hubRx:8, hubAgg:3, hubBatt:80000, hubHarv:0, hubLU:2 },
+  conservative:{ leafMcu:'stm32u5', leafRadio:'si4463_500', cycle:30, sample:30, rate:2, comp:'opus', batt:25000, temp:-10, harv:10, selfD:3, retry:15,
+                 hubMcu:'stm32u5', hubIn:'si4463_500', hubOut:'halow', hubRx:15, hubAgg:3, hubBatt:100000, hubHarv:0, hubLU:2 },
+  worst_cold:  { leafMcu:'stm32u5', leafRadio:'si4463_500', cycle:10, sample:30, rate:3, comp:'opus', batt:20000, temp:-30, harv:0, selfD:5, retry:25,
+                 hubMcu:'stm32u5', hubIn:'si4463_500', hubOut:'halow', hubRx:25, hubAgg:5, hubBatt:80000, hubHarv:0, hubLU:5 },
+  worst_dense: { leafMcu:'stm32u5', leafRadio:'si4463_500', cycle:5, sample:60, rate:3, comp:'opus', batt:20000, temp:20, harv:0, selfD:2, retry:15,
+                 hubMcu:'stm32u5', hubIn:'si4463_500', hubOut:'halow', hubRx:25, hubAgg:5, hubBatt:80000, hubHarv:0, hubLU:2 },
+  worst_combined:{ leafMcu:'esp32s3', leafRadio:'ble_native', cycle:5, sample:60, rate:3, comp:'opus', batt:20000, temp:-30, harv:0, selfD:5, retry:25,
+                 hubMcu:'esp32s3', hubIn:'ble_native', hubOut:'cellular_lte', hubRx:30, hubAgg:8, hubBatt:80000, hubHarv:0, hubLU:8 }
+};
+
+let state = JSON.parse(JSON.stringify(PRESETS.recommended));
+let leafPhaseOverrides = {};
+let hubPhaseOverrides = {};
+let charts = {};
+
+// ===== Compute leaf phases =====
+function defaultLeafPhases() {
+  const mcu = MCUS[state.leafMcu];
+  const radio = RADIOS[state.leafRadio];
+  const rate = RATES[state.rate];
+  const comp = COMPS[state.comp];
+  const sampleSec = state.sample;
+  const retryFactor = state.retry / 10;
+  
+  const rawKB = rate.raw_kB_per_s * sampleSec;
+  const txKB = rawKB / comp.ratio + 10;
+  const txBits = txKB * 1024 * 8;
+  const txSec = (txBits / (radio.eff_kbps * 1000) + 0.5) * retryFactor;
+  const compSec = sampleSec * 0.55 * comp.comp_time_factor * mcu.comp_factor;
+  
+  return [
+    { key:'boot',  name: 'Boot / wake',  current: mcu.boot_mA + radio.idle_mA, duration: mcu.boot_s, cat:'compute' },
+    { key:'audio', name: 'Audio + IMU',  current: mcu.audio_mA + radio.idle_mA, duration: sampleSec, cat:'sensing' },
+    { key:'flash', name: 'Flash write',  current: mcu.flash_mA + radio.idle_mA, duration: mcu.flash_s, cat:'compute' },
+    { key:'comp',  name: 'Compression',  current: mcu.comp_mA + radio.idle_mA, duration: compSec, cat:'compute' },
+    { key:'tx',    name: 'Radio TX',     current: radio.mcu_overhead_mA + radio.current_mA, duration: txSec, cat:'radio' },
+    { key:'rxack', name: 'RX ACK',       current: radio.mcu_overhead_mA + radio.rx_mA, duration: 0.2 * retryFactor, cat:'radio' },
+    { key:'shut',  name: 'Shutdown',     current: mcu.shut_mA + radio.idle_mA, duration: mcu.shut_s, cat:'compute' }
+  ];
+}
+
+function getLeafPhases() {
+  const defaults = defaultLeafPhases();
+  return defaults.map(p => {
+    const o = leafPhaseOverrides[p.key];
+    return {
+      ...p,
+      current: (o && o.current !== undefined) ? o.current : p.current,
+      duration: (o && o.duration !== undefined) ? o.duration : p.duration,
+      isCurrModified: !!(o && o.current !== undefined),
+      isDurModified: !!(o && o.duration !== undefined)
+    };
+  });
+}
+
+function computeLeafFull() {
+  const mcu = MCUS[state.leafMcu];
+  const radio = RADIOS[state.leafRadio];
+  const cycleSec = state.cycle * 60;
+  
+  const phases = getLeafPhases();
+  const activeSec = phases.reduce((s, p) => s + p.duration, 0);
+  const sleepSec = Math.max(0, cycleSec - activeSec);
+  const sleepPhase = { key:'sleep', name:'Deep sleep', current: mcu.sleep_uA/1000, duration: sleepSec, cat:'sleep', isCurrModified:false, isDurModified:false };
+  const allPhases = [sleepPhase, ...phases];
+  
+  let totalMJ = 0;
+  let categories = { sensing:0, compute:0, radio:0, sleep:0 };
+  allPhases.forEach(p => {
+    const mJ = p.current * V * p.duration;
+    p.mJ = mJ;
+    totalMJ += mJ;
+    categories[p.cat] = (categories[p.cat] || 0) + mJ;
+  });
+  
+  return { phases: allPhases, totalMJ, activeSec, sleepSec, categories };
+}
+
+// ===== Compute hub phases =====
+function defaultHubPhases() {
+  const mcu = MCUS[state.hubMcu];
+  const inRadio = RADIOS[state.hubIn];
+  const out = OUTBOUND[state.hubOut];
+  
+  // 3 leaves × payload size = aggregated. Use leaf's TX size for sizing.
+  const rate = RATES[state.rate];
+  const comp = COMPS[state.comp];
+  const rawKB = rate.raw_kB_per_s * state.sample;
+  const txKB = rawKB / comp.ratio + 10;
+  const aggKB = txKB * 3 + 5;
+  const aggBits = aggKB * 1024 * 8;
+  const outTxSec = aggBits / (out.eff_kbps * 1000) + 0.3;
+  
+  return [
+    { key:'boot',  name: 'Boot / wake',     current: mcu.boot_mA + 5, duration: mcu.boot_s, cat:'compute' },
+    { key:'rx',    name: 'Inbound RX (3 leaves)', current: mcu.audio_mA + inRadio.rx_mA, duration: state.hubRx, cat:'in_radio' },
+    { key:'agg',   name: 'Aggregate / process', current: mcu.comp_mA, duration: state.hubAgg, cat:'compute' },
+    { key:'flash', name: 'Flash buffer',    current: mcu.flash_mA + 3, duration: mcu.flash_s * 1.5, cat:'compute' },
+    { key:'lu',    name: 'Outbound link-up', current: 5 + out.current_mA * 0.5, duration: state.hubLU, cat:'out_radio' },
+    { key:'tx',    name: 'Outbound TX',     current: 5 + out.current_mA, duration: outTxSec, cat:'out_radio' },
+    { key:'shut',  name: 'Shutdown',        current: mcu.shut_mA + 3, duration: mcu.shut_s, cat:'compute' }
+  ];
+}
+
+function getHubPhases() {
+  const defaults = defaultHubPhases();
+  return defaults.map(p => {
+    const o = hubPhaseOverrides[p.key];
+    return {
+      ...p,
+      current: (o && o.current !== undefined) ? o.current : p.current,
+      duration: (o && o.duration !== undefined) ? o.duration : p.duration,
+      isCurrModified: !!(o && o.current !== undefined),
+      isDurModified: !!(o && o.duration !== undefined)
+    };
+  });
+}
+
+function computeHubFull() {
+  const mcu = MCUS[state.hubMcu];
+  const out = OUTBOUND[state.hubOut];
+  const cycleSec = state.cycle * 60;
+  const phases = getHubPhases();
+  const activeSec = phases.reduce((s, p) => s + p.duration, 0);
+  const sleepSec = Math.max(0, cycleSec - activeSec);
+  // Hub idle: MCU sleep + outbound radio idle
+  const sleepCurrent = mcu.sleep_uA/1000 + out.idle_mA;
+  const sleepPhase = { key:'sleep', name:'Deep sleep', current: sleepCurrent, duration: sleepSec, cat:'sleep', isCurrModified:false, isDurModified:false };
+  const allPhases = [sleepPhase, ...phases];
+  
+  let totalMJ = 0;
+  let categories = { compute:0, in_radio:0, out_radio:0, sleep:0 };
+  allPhases.forEach(p => {
+    const mJ = p.current * V * p.duration;
+    p.mJ = mJ;
+    totalMJ += mJ;
+    categories[p.cat] = (categories[p.cat] || 0) + mJ;
+  });
+  return { phases: allPhases, totalMJ, activeSec, sleepSec, categories };
+}
+
+// ===== Battery life calculation =====
+function batteryDays(totalMJ, cycleMin, battMah, harvMw, tempC, selfDPct) {
+  const cyclesPerDay = 86400 / (cycleMin * 60);
+  const energyPerDay_J = totalMJ / 1000 * cyclesPerDay;
+  const harvPerDay_J = harvMw * 0.001 * 86400;
+  const netEnergyPerDay = Math.max(0.1, energyPerDay_J - harvPerDay_J);
+  
+  let derating = 1.0;
+  if (tempC <= -30) derating = 0.55;
+  else if (tempC <= -20) derating = 0.7;
+  else if (tempC <= -10) derating = 0.8;
+  else if (tempC <= 0) derating = 0.9;
+  else if (tempC >= 35) derating = 0.95;
+  
+  const usableJ = battMah * 0.001 * V * 3600 * derating;
+  
+  const days = usableJ / netEnergyPerDay;
+  // Apply self-discharge cap: at very long lifetimes self-discharge eats battery
+  const selfDDays = 36500 / Math.max(1, selfDPct);  // 100% / (selfD per year) = years until full discharge × 365
+  return Math.min(days, selfDDays);
+}
+
+// ===== Formatters =====
+function fmtDays(d) {
+  if (!isFinite(d) || d > 36500) return '>10 yr';
+  if (d >= 365) return (d/365).toFixed(2) + ' yr';
+  if (d >= 30) return (d/30.4).toFixed(1) + ' mo';
+  return Math.round(d) + ' days';
+}
+function fmtNum(n) {
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 10000) return (n/1000).toFixed(0) + 'k';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+  if (n >= 100) return Math.round(n).toString();
+  if (n >= 10) return n.toFixed(1);
+  return n.toFixed(2);
+}
+function fmtMJ(mJ) {
+  if (mJ < 0.1) return mJ.toFixed(3) + ' mJ';
+  if (mJ < 10) return mJ.toFixed(2) + ' mJ';
+  if (mJ < 1000) return mJ.toFixed(0) + ' mJ';
+  return (mJ/1000).toFixed(2) + ' J';
+}
+
+function getLifeClass(days) {
+  if (days >= 365) return 'good';
+  if (days >= 180) return 'warn';
+  return 'bad';
+}
+
+// ===== UI update =====
+function update() {
+  // Update all slider value displays
+  document.getElementById('vCycle').textContent = state.cycle + ' min';
+  document.getElementById('vSample').textContent = state.sample + ' s';
+  document.getElementById('vRate').textContent = RATES[state.rate].name;
+  document.getElementById('vBatt').textContent = state.batt.toLocaleString() + ' mAh';
+  document.getElementById('vTemp').textContent = (state.temp >= 0 ? '+' : '') + state.temp + ' °C';
+  document.getElementById('vHarv').textContent = state.harv + ' mW';
+  document.getElementById('vSelfD').textContent = state.selfD + ' %/yr';
+  document.getElementById('vRetry').textContent = (state.retry / 10).toFixed(1) + '×';
+  document.getElementById('vHubRx').textContent = state.hubRx + ' s';
+  document.getElementById('vHubAgg').textContent = state.hubAgg + ' s';
+  document.getElementById('vHubBatt').textContent = state.hubBatt.toLocaleString() + ' mAh';
+  document.getElementById('vHubHarv').textContent = state.hubHarv + ' mW';
+  document.getElementById('vHubLU').textContent = state.hubLU + ' s';
+  
+  const leaf = computeLeafFull();
+  const hub = computeHubFull();
+  
+  const cyclesPerDay = 86400 / (state.cycle * 60);
+  const leafEnergyPerDay = leaf.totalMJ / 1000 * cyclesPerDay;
+  const hubEnergyPerDay = hub.totalMJ / 1000 * cyclesPerDay;
+  
+  const leafDays = batteryDays(leaf.totalMJ, state.cycle, state.batt, state.harv, state.temp, state.selfD);
+  const hubDays = batteryDays(hub.totalMJ, state.cycle, state.hubBatt, state.hubHarv, state.temp, state.selfD);
+  
+  const leafAhYear = leafEnergyPerDay * 365 / (V * 3600);
+  const hubAhYear = hubEnergyPerDay * 365 / (V * 3600);
+  
+  // ===== TOP SUMMARY (always visible) =====
+  const leafClass = getLifeClass(leafDays);
+  const hubClass = getLifeClass(hubDays);
+  
+  document.getElementById('topLeafLife').className = 'top-result ' + leafClass;
+  document.getElementById('topLeafLife').querySelector('.val').textContent = fmtDays(leafDays);
+  document.getElementById('topLeafAh').querySelector('.val').textContent = leafAhYear.toFixed(1);
+  document.getElementById('topHubLife').className = 'top-result ' + hubClass;
+  document.getElementById('topHubLife').querySelector('.val').textContent = fmtDays(hubDays);
+  document.getElementById('topHubAh').querySelector('.val').textContent = hubAhYear.toFixed(1);
+  
+  // ===== STATUS PILLS =====
+  const status = document.getElementById('statusRow');
+  let pills = [];
+  pills.push(`<span class="status-pill ${leafClass}">Leaf: ${fmtDays(leafDays)}</span>`);
+  pills.push(`<span class="status-pill ${hubClass}">Hub: ${fmtDays(hubDays)}</span>`);
+  
+  // Range/throughput check
+  const radio = RADIOS[state.leafRadio];
+  const out = OUTBOUND[state.hubOut];
+  pills.push(`<span class="status-pill ${radio.freq === 'sub-GHz' ? 'good' : 'warn'}">In-blade radio: ${radio.freq}</span>`);
+  pills.push(`<span class="status-pill good">Outbound: ${out.name_short}</span>`);
+  if (state.temp <= -20) pills.push('<span class="status-pill warn">Cold derating active</span>');
+  if (state.retry > 15) pills.push(`<span class="status-pill warn">High retry factor (${(state.retry/10).toFixed(1)}×)</span>`);
+  status.innerHTML = pills.join('');
+  
+  // ===== LEAF METRICS =====
+  document.getElementById('leafMetrics').innerHTML = `
+    <div class="metric"><div class="lbl">Energy / cycle</div><div class="v">${fmtNum(leaf.totalMJ)}</div><div class="u">mJ</div></div>
+    <div class="metric"><div class="lbl">Energy / day</div><div class="v">${fmtNum(leafEnergyPerDay)}</div><div class="u">J</div></div>
+    <div class="metric"><div class="lbl">Energy / year</div><div class="v">${fmtNum(leafEnergyPerDay*365/1000)}</div><div class="u">kJ</div></div>
+    <div class="metric ${leafClass}"><div class="lbl">Battery life</div><div class="v">${fmtDays(leafDays)}</div><div class="u">${state.batt.toLocaleString()} mAh</div></div>
+    <div class="metric"><div class="lbl">For 1 year</div><div class="v">${leafAhYear.toFixed(1)}</div><div class="u">Ah needed</div></div>
+    <div class="metric"><div class="lbl">Active time</div><div class="v">${Math.round(leaf.activeSec)}</div><div class="u">s of ${state.cycle*60} s</div></div>
+    <div class="metric"><div class="lbl">Avg current</div><div class="v">${(leaf.totalMJ / (V * state.cycle * 60)).toFixed(2)}</div><div class="u">mA</div></div>
+  `;
+  
+  // ===== LEAF PHASE TABLE =====
+  renderPhaseTable('leafPhaseBody', leaf.phases, leaf.totalMJ, leafPhaseOverrides, 'leaf');
+  
+  // ===== HUB METRICS =====
+  document.getElementById('hubMetrics').innerHTML = `
+    <div class="metric"><div class="lbl">Energy / cycle</div><div class="v">${fmtNum(hub.totalMJ)}</div><div class="u">mJ</div></div>
+    <div class="metric"><div class="lbl">Energy / day</div><div class="v">${fmtNum(hubEnergyPerDay)}</div><div class="u">J</div></div>
+    <div class="metric"><div class="lbl">Energy / year</div><div class="v">${fmtNum(hubEnergyPerDay*365/1000)}</div><div class="u">kJ</div></div>
+    <div class="metric ${hubClass}"><div class="lbl">Battery life</div><div class="v">${fmtDays(hubDays)}</div><div class="u">${state.hubBatt.toLocaleString()} mAh</div></div>
+    <div class="metric"><div class="lbl">For 1 year</div><div class="v">${hubAhYear.toFixed(1)}</div><div class="u">Ah needed</div></div>
+    <div class="metric"><div class="lbl">Active time</div><div class="v">${Math.round(hub.activeSec)}</div><div class="u">s of ${state.cycle*60} s</div></div>
+    <div class="metric"><div class="lbl">Avg current</div><div class="v">${(hub.totalMJ / (V * state.cycle * 60)).toFixed(2)}</div><div class="u">mA</div></div>
+  `;
+  
+  // ===== HUB PHASE TABLE =====
+  renderPhaseTable('hubPhaseBody', hub.phases, hub.totalMJ, hubPhaseOverrides, 'hub');
+  
+  // ===== SYSTEM TAB =====
+  const sysLeafEnergyKJ = leafEnergyPerDay * 365 * 9 / 1000;
+  const sysHubEnergyKJ = hubEnergyPerDay * 365 * 3 / 1000;
+  const sysTotalKJ = sysLeafEnergyKJ + sysHubEnergyKJ;
+  const sysLeafAh = leafAhYear * 9;
+  const sysHubAh = hubAhYear * 3;
+  const dataPerCycleMB = (RATES[state.rate].raw_kB_per_s * state.sample / COMPS[state.comp].ratio + 10) * 9 / 1024;
+  
+  document.getElementById('systemMetrics').innerHTML = `
+    <div class="metric"><div class="lbl">9 leaves total</div><div class="v">${sysLeafAh.toFixed(0)}</div><div class="u">Ah for 1 yr</div></div>
+    <div class="metric"><div class="lbl">3 hubs total</div><div class="v">${sysHubAh.toFixed(0)}</div><div class="u">Ah for 1 yr</div></div>
+    <div class="metric"><div class="lbl">System total</div><div class="v">${(sysLeafAh + sysHubAh).toFixed(0)}</div><div class="u">Ah for 1 yr</div></div>
+    <div class="metric"><div class="lbl">Annual energy</div><div class="v">${fmtNum(sysTotalKJ)}</div><div class="u">kJ / year</div></div>
+    <div class="metric"><div class="lbl">Data per cycle</div><div class="v">${dataPerCycleMB.toFixed(2)}</div><div class="u">MB compressed</div></div>
+    <div class="metric"><div class="lbl">Data per day</div><div class="v">${(dataPerCycleMB * cyclesPerDay).toFixed(0)}</div><div class="u">MB / day</div></div>
+    <div class="metric"><div class="lbl">Data per year</div><div class="v">${(dataPerCycleMB * cyclesPerDay * 365 / 1024).toFixed(1)}</div><div class="u">GB / year</div></div>
+    <div class="metric"><div class="lbl">Per-leaf pack</div><div class="v">${(state.batt/1000).toFixed(0)}</div><div class="u">Ah, ${(state.batt/1000*V/1000).toFixed(1)} kWh</div></div>
+  `;
+  
+  // ===== CONSTRAINTS =====
+  const constraints = [
+    { name: 'Leaf battery ≥ 1 year', pass: leafDays >= 365, val: fmtDays(leafDays) },
+    { name: 'Hub battery ≥ 1 year', pass: hubDays >= 365, val: fmtDays(hubDays) },
+    { name: 'In-blade radio sub-GHz (or accept low margin)', pass: radio.freq === 'sub-GHz', val: radio.freq },
+    { name: 'Compression below 1 MB per node per cycle', pass: (RATES[state.rate].raw_kB_per_s * state.sample / COMPS[state.comp].ratio) <= 1024, val: ((RATES[state.rate].raw_kB_per_s * state.sample / COMPS[state.comp].ratio)/1024).toFixed(2) + ' MB' },
+    { name: 'Cycle fully fits in interval', pass: leaf.activeSec < state.cycle * 60 * 0.8, val: Math.round(leaf.activeSec) + ' / ' + (state.cycle * 60) + ' s' },
+    { name: 'Hub cycle fits in interval', pass: hub.activeSec < state.cycle * 60 * 0.8, val: Math.round(hub.activeSec) + ' / ' + (state.cycle * 60) + ' s' },
+    { name: 'Per-leaf pack practical (< 50 Ah)', pass: leafAhYear < 50, val: leafAhYear.toFixed(1) + ' Ah/yr' },
+    { name: 'Hub pack practical (< 200 Ah)', pass: hubAhYear < 200, val: hubAhYear.toFixed(1) + ' Ah/yr' }
+  ];
+  document.getElementById('constraintCheck').innerHTML = constraints.map(c => `
+    <div class="constraint ${c.pass ? 'pass' : 'fail'}">
+      <span class="constraint-icon">${c.pass ? '✓' : '✗'}</span>
+      <span>${c.name}</span>
+      <span class="constraint-result">${c.val}</span>
+    </div>
+  `).join('');
+  
+  updateAllCharts(leaf, hub, leafEnergyPerDay, hubEnergyPerDay);
+}
+
+function renderPhaseTable(bodyId, phases, total, overrides, kind) {
+  const body = document.getElementById(bodyId);
+  const maxMJ = Math.max(...phases.map(p => p.mJ));
+  const catColors = {
+    sensing: '#378ADD', compute: '#534AB7', radio: '#b54a2c',
+    in_radio: '#c89d3a', out_radio: '#b54a2c', sleep: '#888'
+  };
+  body.innerHTML = phases.map(p => {
+    const pct = (p.mJ / total * 100).toFixed(1);
+    const barPct = total > 0 ? (p.mJ / maxMJ * 100).toFixed(1) : 0;
+    const color = catColors[p.cat] || '#888';
+    const editable = p.key !== 'sleep';
+    return `<tr>
+      <td class="name">${p.name}</td>
+      <td>${editable ? `<input class="phase-input ${p.isCurrModified?'modified':''}" type="number" step="0.001" data-kind="${kind}" data-key="${p.key}" data-field="current" value="${p.current.toFixed(p.current < 1 ? 3 : 2)}">` : `<span class="mono" style="font-size:11px">${p.current.toFixed(4)}</span>`}</td>
+      <td>${editable ? `<input class="phase-input ${p.isDurModified?'modified':''}" type="number" step="0.01" data-kind="${kind}" data-key="${p.key}" data-field="duration" value="${p.duration.toFixed(p.duration < 1 ? 3 : 2)}">` : `<span class="mono" style="font-size:11px">${Math.round(p.duration)}</span>`}</td>
+      <td class="phase-energy">${fmtMJ(p.mJ)}</td>
+      <td class="bar-col">
+        <div class="phase-bar"><div class="phase-bar-fill" style="width:${barPct}%;background:${color};"></div></div>
+        <div class="phase-pct">${pct}%</div>
+      </td>
+    </tr>`;
+  }).join('');
+  
+  // Attach listeners
+  body.querySelectorAll('.phase-input').forEach(input => {
+    input.addEventListener('input', e => {
+      const k = e.target.dataset.kind;
+      const key = e.target.dataset.key;
+      const field = e.target.dataset.field;
+      const val = parseFloat(e.target.value);
+      if (isNaN(val)) return;
+      const store = (k === 'leaf') ? leafPhaseOverrides : hubPhaseOverrides;
+      if (!store[key]) store[key] = {};
+      store[key][field] = val;
+      update();
+    });
+  });
+}
+
+// ===== Charts =====
+function makeChart(id, type, data, options) {
+  if (charts[id]) {
+    charts[id].destroy();
+  }
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, { type, data, options });
+}
+
+function updateAllCharts(leaf, hub, leafEPD, hubEPD) {
+  Chart.defaults.font.family = "'Inter Tight', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = '#1a1a1a';
+  
+  // ===== Leaf category donut =====
+  makeChart('leafCategoryChart', 'doughnut', {
+    labels: ['Sensing', 'Compute', 'Radio', 'Sleep'],
+    datasets: [{
+      data: [leaf.categories.sensing, leaf.categories.compute, leaf.categories.radio, leaf.categories.sleep],
+      backgroundColor: ['#378ADD', '#534AB7', '#b54a2c', '#888'],
+      borderWidth: 2, borderColor: '#f5f1e8'
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtMJ(ctx.parsed)} (${(ctx.parsed/leaf.totalMJ*100).toFixed(1)}%)` }}
+    }
+  });
+  
+  // ===== Leaf timeline (current vs time) =====
+  const tlPoints = [];
+  let t = 0;
+  for (const p of leaf.phases) {
+    tlPoints.push({ x: t, y: p.current });
+    t += p.duration;
+    tlPoints.push({ x: t, y: p.current });
+  }
+  makeChart('leafTimelineChart', 'line', {
+    datasets: [{
+      label: 'Current (mA)',
+      data: tlPoints,
+      borderColor: '#b54a2c',
+      backgroundColor: 'rgba(181,74,44,0.15)',
+      borderWidth: 1.5, fill: true, pointRadius: 0, stepped: false, tension: 0
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.x.toFixed(1)} s: ${ctx.parsed.y.toFixed(2)} mA` }}},
+    scales: {
+      x: { type: 'linear', title: { display: true, text: 'Time within cycle (s)' } },
+      y: { type: 'logarithmic', title: { display: true, text: 'Current (mA, log)' }, min: 0.0001 }
+    }
+  });
+  
+  // ===== Leaf MCU comparison =====
+  const mcuLabels = [], mcuData = [], mcuColors = [];
+  for (const k of ['esp32s3','nrf5340','stm32u5','samd21']) {
+    mcuLabels.push(MCUS[k].name);
+    const orig = state.leafMcu;
+    state.leafMcu = k;
+    const f = computeLeafFull();
+    mcuData.push(Math.round(f.totalMJ));
+    mcuColors.push(k === orig ? '#b54a2c' : '#888');
+    state.leafMcu = orig;
+  }
+  makeChart('leafMcuCompare', 'bar', {
+    labels: mcuLabels,
+    datasets: [{ data: mcuData, backgroundColor: mcuColors, borderRadius: 4, borderWidth: 0 }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtMJ(ctx.parsed.x) }}},
+    scales: { x: { ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v }, title: { display: true, text: 'Energy per cycle (mJ)' } } }
+  });
+  
+  // ===== Leaf radio comparison =====
+  const rLabels = [], rData = [], rColors = [];
+  for (const k of ['ble_native','ble_coded','nrf24','si4463_500','si4463_1m','lora']) {
+    rLabels.push(RADIOS[k].name);
+    const orig = state.leafRadio;
+    state.leafRadio = k;
+    const f = computeLeafFull();
+    rData.push(Math.round(f.totalMJ));
+    rColors.push(k === orig ? '#b54a2c' : '#888');
+    state.leafRadio = orig;
+  }
+  makeChart('leafRadioCompare', 'bar', {
+    labels: rLabels,
+    datasets: [{ data: rData, backgroundColor: rColors, borderRadius: 4, borderWidth: 0 }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtMJ(ctx.parsed.x) }}},
+    scales: { x: { ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v }, title: { display: true, text: 'Energy per cycle (mJ)' } } }
+  });
+  
+  // ===== Leaf cycle sensitivity =====
+  const intervals = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180];
+  const cycleData = intervals.map(min => {
+    const origCycle = state.cycle;
+    state.cycle = min;
+    const f = computeLeafFull();
+    state.cycle = origCycle;
+    return batteryDays(f.totalMJ, min, state.batt, state.harv, state.temp, state.selfD);
+  });
+  makeChart('leafCycleChart', 'line', {
+    labels: intervals.map(i => i + ' min'),
+    datasets: [
+      { label: 'Battery life', data: cycleData, borderColor: '#4a6b3a', backgroundColor: 'rgba(74,107,58,0.12)', borderWidth: 2, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#4a6b3a', fill: true },
+      { label: '1-year target', data: intervals.map(() => 365), borderColor: '#b54a2c', borderDash: [6,4], borderWidth: 1.5, pointRadius: 0, fill: false }
+    ]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtDays(ctx.parsed.y) }}},
+    scales: { y: { title: { display: true, text: 'Battery life (days)' }, beginAtZero: true } }
+  });
+  
+  // ===== Hub category donut =====
+  makeChart('hubCategoryChart', 'doughnut', {
+    labels: ['Compute', 'Inbound RX', 'Outbound TX', 'Sleep'],
+    datasets: [{
+      data: [hub.categories.compute, hub.categories.in_radio, hub.categories.out_radio, hub.categories.sleep],
+      backgroundColor: ['#534AB7', '#c89d3a', '#b54a2c', '#888'],
+      borderWidth: 2, borderColor: '#f5f1e8'
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtMJ(ctx.parsed)} (${(ctx.parsed/hub.totalMJ*100).toFixed(1)}%)` }}
+    }
+  });
+  
+  // ===== Hub outbound comparison =====
+  const oLabels = [], oData = [], oColors = [];
+  for (const k of Object.keys(OUTBOUND)) {
+    oLabels.push(OUTBOUND[k].name_short);
+    const orig = state.hubOut;
+    state.hubOut = k;
+    const f = computeHubFull();
+    oData.push(Math.round(f.totalMJ));
+    oColors.push(k === orig ? '#b54a2c' : '#888');
+    state.hubOut = orig;
+  }
+  makeChart('hubOutCompare', 'bar', {
+    labels: oLabels,
+    datasets: [{ data: oData, backgroundColor: oColors, borderRadius: 4, borderWidth: 0 }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtMJ(ctx.parsed.x) }}},
+    scales: { x: { ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v }, title: { display: true, text: 'Energy per cycle (mJ)' } } }
+  });
+  
+  // ===== System energy chart =====
+  makeChart('systemEnergyChart', 'bar', {
+    labels: ['Single leaf','9 leaves','Single hub','3 hubs','System total'],
+    datasets: [{
+      data: [leafEPD*365/1000, leafEPD*365*9/1000, hubEPD*365/1000, hubEPD*365*3/1000, (leafEPD*9+hubEPD*3)*365/1000],
+      backgroundColor: ['#4a6b3a','#4a6b3a','#c89d3a','#c89d3a','#1a1a1a'],
+      borderRadius: 4, borderWidth: 0
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtNum(ctx.parsed.y) + ' kJ/year' }}},
+    scales: { y: { title: { display: true, text: 'Energy / year (kJ)' } } }
+  });
+  
+  // ===== System Ah chart =====
+  const leafAhYear = leafEPD * 365 / (V * 3600);
+  const hubAhYear = hubEPD * 365 / (V * 3600);
+  makeChart('systemAhChart', 'bar', {
+    labels: ['Single leaf','9 leaves','Single hub','3 hubs','System total'],
+    datasets: [{
+      data: [leafAhYear, leafAhYear*9, hubAhYear, hubAhYear*3, leafAhYear*9 + hubAhYear*3],
+      backgroundColor: ['#4a6b3a','#4a6b3a','#c89d3a','#c89d3a','#1a1a1a'],
+      borderRadius: 4, borderWidth: 0
+    }]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + ' Ah/year' }}},
+    scales: { y: { title: { display: true, text: 'Ah needed for 1 year' } } }
+  });
+  
+  // ===== Timeline chart =====
+  // build timeline: leaf 1 active early, hubs later
+  const tlLabels = ['t=0','t=30','t=60','t=99','t=144','t=cycle end'];
+  // not a true timeline — represent as stacked bars showing seconds active per role
+  const totalCycle = state.cycle * 60;
+  const inboundDur = state.hubRx;
+  const outboundDur = (computeHubFull().phases.find(p => p.key === 'tx') || {}).duration || 1;
+  
+  makeChart('timelineChart', 'bar', {
+    labels: ['Leaf node','Hub node'],
+    datasets: [
+      { label: 'Sleep', data: [Math.max(0,totalCycle - leaf.activeSec), Math.max(0,totalCycle - hub.activeSec)], backgroundColor: '#ccc', stack: 's' },
+      { label: 'Sensing', data: [state.sample, 0], backgroundColor: '#378ADD', stack: 's' },
+      { label: 'Compute', data: [leaf.activeSec - state.sample - (leaf.phases.find(p=>p.key==='tx')||{}).duration||0 - (leaf.phases.find(p=>p.key==='rxack')||{}).duration||0, state.hubAgg + 0.5], backgroundColor: '#534AB7', stack: 's' },
+      { label: 'Radio TX/RX', data: [(leaf.phases.find(p=>p.key==='tx')||{}).duration + (leaf.phases.find(p=>p.key==='rxack')||{}).duration, inboundDur + outboundDur + state.hubLU], backgroundColor: '#b54a2c', stack: 's' }
+    ]
+  }, {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 12, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x.toFixed(1)} s` }}
+    },
+    scales: {
+      x: { stacked: true, title: { display: true, text: 'Time within cycle (s)' }, max: totalCycle },
+      y: { stacked: true }
+    }
+  });
+}
+
+// ===== Preset switching =====
+function applyPreset(name) {
+  state = JSON.parse(JSON.stringify(PRESETS[name]));
+  leafPhaseOverrides = {};
+  hubPhaseOverrides = {};
+  syncUIFromState();
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === name));
+  update();
+}
+
+function syncUIFromState() {
+  document.getElementById('iCycle').value = state.cycle;
+  document.getElementById('iSample').value = state.sample;
+  document.getElementById('iRate').value = state.rate;
+  document.getElementById('iBatt').value = state.batt;
+  document.getElementById('iTemp').value = state.temp;
+  document.getElementById('iHarv').value = state.harv;
+  document.getElementById('iSelfD').value = state.selfD;
+  document.getElementById('iRetry').value = state.retry;
+  document.getElementById('iHubRx').value = state.hubRx;
+  document.getElementById('iHubAgg').value = state.hubAgg;
+  document.getElementById('iHubBatt').value = state.hubBatt;
+  document.getElementById('iHubHarv').value = state.hubHarv;
+  document.getElementById('iHubLU').value = state.hubLU;
+  
+  document.querySelectorAll('#leafMcuOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.mcu === state.leafMcu));
+  document.querySelectorAll('#leafRadioOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.radio === state.leafRadio));
+  document.querySelectorAll('#compOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.comp === state.comp));
+  document.querySelectorAll('#hubMcuOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.mcu === state.hubMcu));
+  document.querySelectorAll('#hubInOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.in === state.hubIn));
+  document.querySelectorAll('#hubOutOpts .opt').forEach(b => b.classList.toggle('sel', b.dataset.out === state.hubOut));
+}
+
+// ===== Event wiring =====
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => applyPreset(b.dataset.preset));
+});
+
+document.querySelectorAll('.tab').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+    setTimeout(update, 30);
+  });
+});
+
+document.querySelectorAll('#leafMcuOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#leafMcuOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.leafMcu = b.dataset.mcu;
+  leafPhaseOverrides = {};  // reset overrides when MCU changes
+  update();
+}));
+
+document.querySelectorAll('#leafRadioOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#leafRadioOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.leafRadio = b.dataset.radio;
+  leafPhaseOverrides = {};
+  update();
+}));
+
+document.querySelectorAll('#compOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#compOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.comp = b.dataset.comp;
+  leafPhaseOverrides = {};
+  update();
+}));
+
+document.querySelectorAll('#hubMcuOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#hubMcuOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.hubMcu = b.dataset.mcu;
+  hubPhaseOverrides = {};
+  update();
+}));
+
+document.querySelectorAll('#hubInOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#hubInOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.hubIn = b.dataset.in;
+  hubPhaseOverrides = {};
+  update();
+}));
+
+document.querySelectorAll('#hubOutOpts .opt').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#hubOutOpts .opt').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  state.hubOut = b.dataset.out;
+  hubPhaseOverrides = {};
+  update();
+}));
+
+// Sliders
+const sliderMap = [
+  ['iCycle','cycle'], ['iSample','sample'], ['iRate','rate'],
+  ['iBatt','batt'], ['iTemp','temp'], ['iHarv','harv'],
+  ['iSelfD','selfD'], ['iRetry','retry'],
+  ['iHubRx','hubRx'], ['iHubAgg','hubAgg'],
+  ['iHubBatt','hubBatt'], ['iHubHarv','hubHarv'], ['iHubLU','hubLU']
+];
+sliderMap.forEach(([id, key]) => {
+  document.getElementById(id).addEventListener('input', e => {
+    state[key] = parseInt(e.target.value);
+    if (key === 'cycle' || key === 'sample' || key === 'rate') leafPhaseOverrides = {};
+    if (key === 'hubRx' || key === 'hubAgg' || key === 'hubLU') hubPhaseOverrides = {};
+    update();
+  });
+});
+
+document.getElementById('resetLeafPhases').addEventListener('click', () => {
+  leafPhaseOverrides = {};
+  update();
+});
+document.getElementById('resetHubPhases').addEventListener('click', () => {
+  hubPhaseOverrides = {};
+  update();
+});
+
+// Initial render
+update();
+</script>
+
+</body>
+</html>
+

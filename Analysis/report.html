@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wind Turbine DAQ — System Architecture Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f5f1e8;
+    --cream: #ebe5d4;
+    --rust: #b54a2c;
+    --moss: #4a6b3a;
+    --slate: #2c3e50;
+    --gold: #c89d3a;
+    --line: rgba(26,26,26,0.15);
+    --line-strong: rgba(26,26,26,0.5);
+    --muted: rgba(26,26,26,0.6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  .display { font-family: 'Fraunces', serif; font-weight: 500; letter-spacing: -0.02em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  
+  /* Sticky nav */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(245, 241, 232, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px;
+  }
+  .nav-brand { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a { color: var(--ink); text-decoration: none; opacity: 0.7; transition: opacity 0.2s; }
+  .nav-links a:hover { opacity: 1; }
+  
+  /* Hero */
+  .hero {
+    padding: 120px 60px 80px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; right: -100px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(181,74,44,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.2em; color: var(--rust);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400; font-size: clamp(40px, 7vw, 88px);
+    line-height: 1.05; letter-spacing: -0.03em;
+    margin-bottom: 24px; max-width: 1100px;
+  }
+  .hero h1 em { font-style: italic; color: var(--rust); }
+  .hero-sub {
+    font-size: 19px; max-width: 720px;
+    color: var(--muted); margin-bottom: 48px;
+  }
+  .hero-meta {
+    display: flex; gap: 48px; flex-wrap: wrap;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+  }
+  .hero-meta-item { font-size: 13px; }
+  .hero-meta-item .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em; color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .hero-meta-item .value { font-size: 16px; font-weight: 500; }
+  
+  /* Sections */
+  section { padding: 80px 60px; border-bottom: 1px solid var(--line); }
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.2em;
+    color: var(--rust); margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400; font-size: clamp(32px, 4vw, 52px);
+    line-height: 1.1; letter-spacing: -0.02em;
+    margin-bottom: 24px; max-width: 900px;
+  }
+  h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500; font-size: 24px;
+    line-height: 1.2; letter-spacing: -0.01em;
+    margin: 40px 0 16px;
+  }
+  h4 {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600; font-size: 15px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 32px 0 12px; color: var(--slate);
+  }
+  p { font-size: 16px; max-width: 780px; margin-bottom: 16px; color: rgba(26,26,26,0.85); }
+  p.lead { font-size: 19px; color: var(--ink); max-width: 820px; }
+  
+  /* Callouts */
+  .callout {
+    margin: 28px 0;
+    padding: 20px 24px;
+    border-left: 3px solid var(--rust);
+    background: rgba(181,74,44,0.05);
+    border-radius: 0 8px 8px 0;
+  }
+  .callout-key {
+    border-left-color: var(--moss);
+    background: rgba(74,107,58,0.06);
+  }
+  .callout-warn {
+    border-left-color: var(--gold);
+    background: rgba(200,157,58,0.08);
+  }
+  .callout-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--rust); margin-bottom: 8px;
+  }
+  .callout-key .callout-label { color: var(--moss); }
+  .callout-warn .callout-label { color: var(--gold); }
+  .callout p { margin-bottom: 0; }
+  
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 24px 0; font-size: 14px;
+  }
+  th, td {
+    text-align: left; padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 400;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  td.num { font-family: 'JetBrains Mono', monospace; text-align: right; }
+  td.strong { font-weight: 500; color: var(--ink); }
+  tr.highlight td { background: rgba(74,107,58,0.06); font-weight: 500; }
+  tr.danger td { background: rgba(181,74,44,0.06); }
+  
+  /* Grids */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin: 32px 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 32px 0; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 32px 0; }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    section { padding: 60px 24px; }
+    .hero { padding: 80px 24px 60px; }
+    .nav { padding: 14px 24px; }
+  }
+  
+  /* Metric cards */
+  .metric-card {
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--line);
+  }
+  .metric-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em; color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .metric-card .value {
+    font-family: 'Fraunces', serif;
+    font-weight: 400; font-size: 32px;
+    line-height: 1; margin-bottom: 4px;
+  }
+  .metric-card .unit { font-size: 14px; color: var(--muted); }
+  .metric-card.accent .value { color: var(--rust); }
+  .metric-card.good .value { color: var(--moss); }
+  
+  /* Chart container */
+  .chart-wrap {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .chart-title {
+    font-family: 'Fraunces', serif;
+    font-size: 17px; font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .chart-sub {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .chart-canvas-wrap { position: relative; height: 320px; }
+  .chart-legend {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    margin-bottom: 16px; font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  
+  /* TOC */
+  .toc {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 40px 0;
+  }
+  .toc h3 { margin-top: 0; }
+  .toc ol { list-style: none; counter-reset: toc; padding: 0; }
+  .toc li {
+    counter-increment: toc;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 16px;
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--rust);
+    min-width: 32px;
+  }
+  .toc li:last-child { border-bottom: none; }
+  .toc a { color: var(--ink); text-decoration: none; flex: 1; }
+  .toc a:hover { color: var(--rust); }
+  
+  /* SVG diagram styling */
+  .diagram-wrap {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 32px 0;
+  }
+  .diagram-wrap svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .diagram-caption {
+    font-size: 13px; color: var(--muted);
+    text-align: center; margin-top: 16px;
+    font-style: italic;
+  }
+  
+  /* Option cards */
+  .option-card {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    transition: all 0.3s;
+  }
+  .option-card.recommended {
+    border: 2px solid var(--moss);
+    background: rgba(74,107,58,0.04);
+  }
+  .option-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 10px; border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .option-badge.rec { background: var(--moss); color: var(--paper); }
+  .option-badge.alt { background: var(--cream); color: var(--muted); border: 1px solid var(--line); }
+  .option-badge.bad { background: rgba(181,74,44,0.15); color: var(--rust); }
+  .option-card h4 {
+    margin: 0 0 8px;
+    font-family: 'Fraunces', serif;
+    font-weight: 500; font-size: 20px;
+    text-transform: none; letter-spacing: 0;
+    color: var(--ink);
+  }
+  .option-card .sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .option-card ul { list-style: none; padding: 0; margin: 12px 0; font-size: 14px; }
+  .option-card li { padding: 4px 0; padding-left: 20px; position: relative; }
+  .option-card li::before {
+    content: '—'; position: absolute; left: 0;
+    color: var(--rust);
+  }
+  
+  /* Pull-quote */
+  .pullquote {
+    font-family: 'Fraunces', serif;
+    font-weight: 300; font-style: italic;
+    font-size: 28px; line-height: 1.3;
+    color: var(--slate);
+    border-left: 4px solid var(--rust);
+    padding: 16px 0 16px 32px;
+    margin: 48px 0;
+    max-width: 900px;
+  }
+  
+  /* Footer */
+  footer {
+    padding: 60px;
+    background: var(--ink); color: var(--paper);
+    text-align: center;
+  }
+  footer p { color: rgba(245,241,232,0.7); max-width: none; font-size: 14px; }
+  
+  /* Code/spec blocks */
+  .spec {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: rgba(26,26,26,0.04);
+    border-left: 2px solid var(--slate);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 6px 6px 0;
+    white-space: pre-wrap;
+    line-height: 1.7;
+  }
+  
+  /* Decision matrix */
+  .matrix {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 32px 0;
+  }
+  .matrix-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 80px;
+    gap: 24px; padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: center;
+  }
+  .matrix-row:last-child { border-bottom: none; }
+  .matrix-row .crit { font-weight: 500; font-size: 14px; }
+  .matrix-bar {
+    height: 8px;
+    background: rgba(26,26,26,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .matrix-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .matrix-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; text-align: right;
+  }
+  
+  /* Print styles */
+  @media print {
+    body { background: white; }
+    .nav { display: none; }
+    section { padding: 40px; page-break-inside: avoid; }
+    .chart-wrap, .diagram-wrap { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">WT-DAQ // System Architecture Report</div>
+  <div class="nav-links">
+    <a href="#summary">Summary</a>
+    <a href="#topology">Topology</a>
+    <a href="#mcu">MCU</a>
+    <a href="#radio">Radio</a>
+    <a href="#power">Power</a>
+    <a href="#system">System</a>
+    <a href="#calc">Calculator</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">Technical Design Report — Iteration 03</div>
+  <h1>Designing a battery-powered <em>distributed sensing</em> system for a 100 m wind turbine blade.</h1>
+  <p class="hero-sub">A comprehensive architecture analysis covering MCU selection, radio protocol trade-offs, RF propagation through composite blade structures, power budgeting, and full-system topology — with the goal of meeting one-year battery operation while reliably transferring audio and IMU data from inside a rotating blade to the tower base.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <div class="label">Nodes</div>
+      <div class="value">9 leaf + 3 hub + 1 base</div>
+    </div>
+    <div class="hero-meta-item">
+      <div class="label">Blade length</div>
+      <div class="value">100 m</div>
+    </div>
+    <div class="hero-meta-item">
+      <div class="label">Tower height</div>
+      <div class="value">300 m</div>
+    </div>
+    <div class="hero-meta-item">
+      <div class="label">Sampling</div>
+      <div class="value">44.1 kHz audio + IMU</div>
+    </div>
+    <div class="hero-meta-item">
+      <div class="label">Duty</div>
+      <div class="value">30 s every 10 min</div>
+    </div>
+    <div class="hero-meta-item">
+      <div class="label">Target life</div>
+      <div class="value">1 year on battery</div>
+    </div>
+  </div>
+</section>
+
+<section id="summary">
+  <div class="section-num">01 / Executive summary</div>
+  <h2>The honest finding: power budget, not range, is the binding constraint.</h2>
+  
+  <p class="lead">After modelling four candidate MCUs across four radio technologies, the analysis converges on a clear winner for the leaf nodes — but also exposes an inconvenient truth: any architecture using <strong>Wi-Fi HaLow at every node</strong> is incompatible with one-year battery life on practical pack sizes.</p>
+  
+  <div class="callout callout-key">
+    <div class="callout-label">Key recommendation</div>
+    <p><strong>Two-tier architecture</strong>: STM32U5 leaf nodes using Si4463 sub-GHz radios within each blade, transmitting via 3-node star topology to a per-blade hub. Hub nodes (also STM32U5) aggregate the three streams and forward over Wi-Fi HaLow down the tower to the base station. This split keeps the high-power HaLow radio off the leaf nodes entirely.</p>
+  </div>
+  
+  <div class="grid-4">
+    <div class="metric-card good">
+      <div class="label">Leaf energy/cycle</div>
+      <div class="value">3,600</div>
+      <div class="unit">mJ per 600 s cycle</div>
+    </div>
+    <div class="metric-card good">
+      <div class="label">Leaf battery for 1 yr</div>
+      <div class="value">14.2</div>
+      <div class="unit">Ah at 3.7 V</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Hub battery for 1 yr</div>
+      <div class="value">~50</div>
+      <div class="unit">Ah at 3.7 V</div>
+    </div>
+    <div class="metric-card accent">
+      <div class="label">Link margin (in-blade)</div>
+      <div class="value">~50</div>
+      <div class="unit">dB at 33 m hop</div>
+    </div>
+  </div>
+  
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#summary">Executive summary</a></li>
+      <li><a href="#requirements">System requirements &amp; data model</a></li>
+      <li><a href="#topology">Network topology options</a></li>
+      <li><a href="#rf">RF propagation inside the blade</a></li>
+      <li><a href="#radio">Radio protocol comparison</a></li>
+      <li><a href="#mcu">MCU selection &amp; comparison</a></li>
+      <li><a href="#power">Power budget analysis</a></li>
+      <li><a href="#system">Full system architecture</a></li>
+      <li><a href="#practical">Practical concerns &amp; rotating-blade effects</a></li>
+      <li><a href="#calc">Interactive power calculator</a></li>
+    </ol>
+  </div>
+</section>
+
+<section id="requirements">
+  <div class="section-num">02 / Requirements &amp; data model</div>
+  <h2>What the system must do, and what data it must move.</h2>
+  
+  <p>Each of the 9 sensor nodes inside the blades collects audio at 44.1 kHz alongside IMU data. With a 30-second sampling window every 10 minutes, the duty cycle is approximately 5% — leaving substantial sleep time for energy recovery and a wide transmission window before the next cycle begins.</p>
+  
+  <h3>Raw data volumes per cycle</h3>
+  <table>
+    <thead>
+      <tr><th>Data source</th><th>Specification</th><th class="num">Raw size / 30 s</th><th class="num">After OPUS</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Audio (mono, 16-bit)</td><td>44.1 kHz, single mic</td><td class="num">2,646 KB</td><td class="num">120 KB</td></tr>
+      <tr><td>IMU 6-axis</td><td>16-bit, 200 Hz</td><td class="num">72 KB</td><td class="num">10 KB</td></tr>
+      <tr><td>Metadata + headers</td><td>Timestamp, node ID, CRC</td><td class="num">1 KB</td><td class="num">1 KB</td></tr>
+      <tr class="highlight"><td class="strong">Total per node</td><td>—</td><td class="num strong">2,719 KB</td><td class="num strong">131 KB</td></tr>
+      <tr class="highlight"><td class="strong">Total per blade (3 nodes)</td><td>—</td><td class="num strong">8.2 MB</td><td class="num strong">393 KB</td></tr>
+      <tr class="highlight"><td class="strong">Total whole turbine</td><td>—</td><td class="num strong">24.5 MB</td><td class="num strong">1.18 MB</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="callout">
+    <div class="callout-label">Why compression matters</div>
+    <p>Sending raw audio over a low-power radio is the difference between a 15-second transmission and a 6-minute one. OPUS at 32 kbps reduces audio to a manageable ~120 KB per 30-second sample with full intelligibility for structural and acoustic analysis. ADPCM is a lower-CPU alternative at 4:1 compression — worth considering on the SAMD21.</p>
+  </div>
+  
+  <h3>Throughput requirements</h3>
+  <p>Over a 10-minute window, the system must transfer 1.18 MB from inside the blades to the base station. This averages to <strong>~16 kbps system-wide</strong> — a trivially small number. The real challenge is not throughput but the <em>burst</em> nature of the transmission and the RF environment it must traverse.</p>
+</section>
+
+
+<section id="topology">
+  <div class="section-num">03 / Network topology</div>
+  <h2>Three ways to wire 9 nodes through a rotating composite structure.</h2>
+  
+  <p class="lead">The topology choice cascades through every other decision in the system. It determines which radios are viable, how much energy each node spends, and what fails when something breaks.</p>
+  
+  <div class="grid-3">
+    <div class="option-card">
+      <span class="option-badge bad">Rejected</span>
+      <h4>A. Direct star to base</h4>
+      <p class="sub">Every node has its own long-range radio to the base station.</p>
+      <ul>
+        <li>9 HaLow radios needed</li>
+        <li>400 m path through hub structure</li>
+        <li>Catastrophic power cost on leaves</li>
+        <li>Simplest mental model</li>
+      </ul>
+    </div>
+    <div class="option-card recommended">
+      <span class="option-badge rec">Recommended</span>
+      <h4>B. Per-blade hub aggregation</h4>
+      <p class="sub">Short-range to blade hub, then hub uses HaLow to base.</p>
+      <ul>
+        <li>Only 3 HaLow radios needed</li>
+        <li>Leaf hops max 33 m</li>
+        <li>HaLow power penalty isolated to 3 hubs</li>
+        <li>Tower-base link only crosses 300 m once per blade</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <span class="option-badge alt">Alternative</span>
+      <h4>C. Self-healing mesh</h4>
+      <p class="sub">Every node can relay for every other node.</p>
+      <ul>
+        <li>Redundant paths if one node fails</li>
+        <li>Higher idle current — periodic listening</li>
+        <li>Significant firmware complexity</li>
+        <li>Standardised via Bluetooth Mesh</li>
+      </ul>
+    </div>
+  </div>
+  
+  <h3>Within a blade: three sub-topology options</h3>
+  <p>Inside each blade, the three nodes can talk to the hub via a star, a daisy chain, or a mesh. The star wins on simplicity, energy, and link margin when paired with a sub-GHz radio.</p>
+  
+  <div class="diagram-wrap">
+    <svg width="100%" viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      
+      <text x="150" y="40" text-anchor="middle" font-family="Fraunces" font-size="16" font-weight="500" fill="#1a1a1a">Star (recommended)</text>
+      <text x="450" y="40" text-anchor="middle" font-family="Fraunces" font-size="16" font-weight="500" fill="#1a1a1a">Linear relay</text>
+      <text x="750" y="40" text-anchor="middle" font-family="Fraunces" font-size="16" font-weight="500" fill="#1a1a1a">Mesh</text>
+      
+      <!-- Star -->
+      <g transform="translate(50, 70)">
+        <rect x="0" y="120" width="200" height="60" rx="8" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="155" text-anchor="middle" font-family="Inter Tight" font-size="13" font-weight="500" fill="#1a1a1a">Blade hub</text>
+        <text x="100" y="170" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666">root, +STM32U5+HaLow</text>
+        
+        <rect x="15" y="240" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="40" y="263" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">A</text>
+        <rect x="75" y="280" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="303" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">B</text>
+        <rect x="135" y="240" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="160" y="263" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">C</text>
+        
+        <line x1="40" y1="240" x2="80" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="100" y1="280" x2="100" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="160" y1="240" x2="120" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        
+        <text x="100" y="340" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#666">Each node → hub directly</text>
+        <text x="100" y="355" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a6b3a">TDMA, ~50 dB margin</text>
+      </g>
+      
+      <!-- Linear -->
+      <g transform="translate(350, 70)">
+        <rect x="0" y="120" width="200" height="60" rx="8" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="155" text-anchor="middle" font-family="Inter Tight" font-size="13" font-weight="500" fill="#1a1a1a">Blade hub</text>
+        <text x="100" y="170" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666">root</text>
+        
+        <rect x="135" y="240" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="160" y="263" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">A</text>
+        <rect x="75" y="280" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="303" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">B</text>
+        <rect x="15" y="320" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="40" y="343" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">C</text>
+        
+        <line x1="40" y1="320" x2="80" y2="280" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="120" y1="280" x2="150" y2="240" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="160" y1="240" x2="120" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        
+        <text x="100" y="380" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#666">C → B → A → hub</text>
+        <text x="100" y="395" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#b54a2c">B carries 2× data</text>
+      </g>
+      
+      <!-- Mesh -->
+      <g transform="translate(650, 70)">
+        <rect x="0" y="120" width="200" height="60" rx="8" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="155" text-anchor="middle" font-family="Inter Tight" font-size="13" font-weight="500" fill="#1a1a1a">Blade hub</text>
+        
+        <rect x="15" y="240" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="40" y="263" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">A</text>
+        <rect x="75" y="280" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="100" y="303" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">B</text>
+        <rect x="135" y="240" width="50" height="36" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="160" y="263" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#1a1a1a">C</text>
+        
+        <line x1="65" y1="258" x2="80" y2="286" stroke="#888" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="120" y1="286" x2="135" y2="258" stroke="#888" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="65" y1="252" x2="135" y2="252" stroke="#888" stroke-width="1" stroke-dasharray="3,3"/>
+        
+        <line x1="40" y1="240" x2="80" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="100" y1="280" x2="100" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        <line x1="160" y1="240" x2="120" y2="180" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr1)"/>
+        
+        <text x="100" y="380" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#666">Any node can relay</text>
+        <text x="100" y="395" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#c89d3a">Higher idle, redundant</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Three in-blade topology options. Star wins on energy and link margin when paired with sub-GHz radio.</div>
+  </div>
+</section>
+
+
+<section id="rf">
+  <div class="section-num">04 / RF propagation</div>
+  <h2>The blade interior is hostile to 2.4 GHz radio.</h2>
+  
+  <p class="lead">A modern wind turbine blade is a composite shell of fibreglass and carbon fibre over a foam or balsa core. Carbon fibre, in particular, behaves as a partial Faraday cage at 2.4 GHz — attenuating signal by 20–40 dB through a single layer. Sub-GHz frequencies penetrate this same material with 10–20 dB less loss.</p>
+  
+  <h3>Material attenuation by frequency band</h3>
+  <table>
+    <thead>
+      <tr><th>Material</th><th class="num">@ 2.4 GHz</th><th class="num">@ 915 MHz</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Fibreglass (GFRP)</td><td class="num">3–6 dB</td><td class="num">1–2 dB</td><td>Per layer; usually 3–8 layers</td></tr>
+      <tr><td>Carbon fibre (CFRP)</td><td class="num">20–40 dB</td><td class="num">10–20 dB</td><td>Acts as partial Faraday cage</td></tr>
+      <tr><td>Spar cap (structural CFRP)</td><td class="num">Full block</td><td class="num">15–25 dB</td><td>Major structural beam</td></tr>
+      <tr><td>Foam/balsa core</td><td class="num">~0 dB</td><td class="num">~0 dB</td><td>RF-transparent</td></tr>
+    </tbody>
+  </table>
+  
+  <h3>Link budget comparison: BLE 5 vs Si4463 sub-GHz</h3>
+  <p>The fundamental question is whether the link has enough margin to survive real-world conditions: temperature, humidity, antenna orientation in a rotating blade, manufacturing variation in the spar geometry, and the inevitable surprises of field deployment.</p>
+  
+  <div class="grid-2">
+    <div class="option-card">
+      <h4>BLE 5 Coded PHY S=8 @ 2.4 GHz</h4>
+      <div class="spec">TX power (nRF5340):       +8 dBm
+Sensitivity:            -103 dBm
+Total link budget:       111 dB
+
+Path loss (66 m, FSPL):  -76 dB
+Carbon spar penalty:     -20 dB
+Antenna/polarization:     -6 dB
+Connector losses:         -3 dB
+─────────────────────────────────
+Remaining margin:         +6 dB</div>
+      <p style="font-size: 13px; color: var(--rust); margin-top: 12px;"><strong>Risk:</strong> 6 dB margin is well below the 20 dB industrial standard. Intermittent failures likely under field conditions.</p>
+    </div>
+    
+    <div class="option-card recommended">
+      <span class="option-badge rec">Robust</span>
+      <h4>Si4463 @ 915 MHz, 500 kbps</h4>
+      <div class="spec">TX power (Si4463):       +13 dBm
+Sensitivity:            -103 dBm
+Total link budget:       116 dB
+
+Path loss (33 m, FSPL):  -62 dB
+Carbon spar penalty:     -15 dB
+Antenna/polarization:     -6 dB
+Connector losses:         -3 dB
+─────────────────────────────────
+Remaining margin:         +30 dB</div>
+      <p style="font-size: 13px; color: var(--moss); margin-top: 12px;"><strong>Healthy:</strong> 30 dB margin survives worst-case orientation, weather, and manufacturing variation.</p>
+    </div>
+  </div>
+  
+  <div class="callout callout-warn">
+    <div class="callout-label">Important caveat</div>
+    <p>These calculations are based on free-space path loss plus typical published carbon fibre attenuation figures. Actual values depend on specific blade construction (manufacturer, layup, spar geometry). For any real deployment, an RF propagation survey inside a representative blade is essential — both with the blade stationary and rotating, since multipath behaviour changes dynamically.</p>
+  </div>
+</section>
+
+<section id="radio">
+  <div class="section-num">05 / Radio protocol comparison</div>
+  <h2>Eight radio options, three good fits.</h2>
+  
+  <p class="lead">For the intra-blade link (33 m through composite material), we need a protocol that combines adequate throughput, low TX current, strong penetration, and accessible silicon. Wi-Fi HaLow is reserved for the hub-to-base link where its range justifies its power cost.</p>
+  
+  <div class="chart-wrap">
+    <div class="chart-title">Transfer time and energy for 130 KB payload (1 node, single TX)</div>
+    <div class="chart-sub">Lower is better. Bars show TX energy in millijoules. Annotation shows total transfer time.</div>
+    <div class="chart-canvas-wrap"><canvas id="radioChart"></canvas></div>
+  </div>
+  
+  <h3>Detailed radio comparison</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Radio</th>
+        <th>Frequency</th>
+        <th class="num">Effective rate</th>
+        <th class="num">TX current</th>
+        <th class="num">Sensitivity</th>
+        <th>In-blade fit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="strong">BLE 5 standard 1M</td><td>2.4 GHz</td><td class="num">~600 kbps</td><td class="num">5–8 mA</td><td class="num">-95 dBm</td><td>Marginal (low margin)</td></tr>
+      <tr><td class="strong">BLE 5 Coded S=2</td><td>2.4 GHz</td><td class="num">~250 kbps</td><td class="num">5–8 mA</td><td class="num">-100 dBm</td><td>Risky in CFRP blade</td></tr>
+      <tr><td class="strong">BLE 5 Coded S=8</td><td>2.4 GHz</td><td class="num">~60 kbps</td><td class="num">5–8 mA</td><td class="num">-103 dBm</td><td>Marginal (~6 dB margin)</td></tr>
+      <tr><td class="strong">nRF24L01+</td><td>2.4 GHz</td><td class="num">~1 Mbps</td><td class="num">11 mA</td><td class="num">-94 dBm</td><td>Poor — fails in CFRP</td></tr>
+      <tr><td class="strong">Zigbee / Thread</td><td>2.4 GHz</td><td class="num">~250 kbps</td><td class="num">17 mA</td><td class="num">-100 dBm</td><td>Same as BLE issues</td></tr>
+      <tr class="highlight"><td class="strong">Si4463</td><td>915 MHz</td><td class="num">~280 kbps</td><td class="num">18 mA</td><td class="num">-103 dBm</td><td>Excellent (50+ dB margin)</td></tr>
+      <tr class="highlight"><td class="strong">SX1262 LoRa</td><td>868/915 MHz</td><td class="num">5–50 kbps</td><td class="num">20 mA</td><td class="num">-137 dBm</td><td>Excellent — extreme margin</td></tr>
+      <tr><td class="strong">Wi-Fi HaLow</td><td>900 MHz</td><td class="num">~2 Mbps</td><td class="num">200–300 mA</td><td class="num">-99 dBm</td><td>Overkill for in-blade</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="callout callout-key">
+    <div class="callout-label">Si4463 wins on three axes</div>
+    <p>For the in-blade link, Si4463 at 915 MHz with 500 kbps modulation provides the rare combination of <strong>fast enough transmission</strong> (~3.7 s for a node's payload), <strong>excellent penetration</strong> (50+ dB link margin), and <strong>low TX current</strong> (18 mA at +13 dBm). The slight current penalty vs BLE is more than offset by the shorter transmission window.</p>
+  </div>
+  
+  <h3>Why HaLow only at the hub</h3>
+  <p>Wi-Fi HaLow's 200–300 mA TX current is incompatible with one-year battery life if deployed at every node. By restricting HaLow to the 3 blade hubs, we accept a higher power burden on those 3 devices in exchange for keeping the 9 leaf nodes truly low-power. Hub batteries can be physically larger because the hub enclosure sits at the blade root with more space and weight tolerance.</p>
+</section>
+
+<section id="mcu">
+  <div class="section-num">06 / MCU selection</div>
+  <h2>The cost of choosing a friendly toolchain.</h2>
+  
+  <p class="lead">The most popular MCU for IoT prototyping — ESP32-S3 — is also the most energy-hungry by an order of magnitude. The honest analysis shows STM32U5 and nRF5340 essentially tied on power, with STM32U5 winning slightly on raw efficiency and the nRF5340 winning on integrated BLE convenience.</p>
+  
+  <h3>Core power characteristics</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>MCU</th>
+        <th class="num">Run µA/MHz</th>
+        <th class="num">Deep sleep</th>
+        <th class="num">Wake time</th>
+        <th>Integrated radio</th>
+        <th>Ecosystem</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="danger">
+        <td class="strong">ESP32-S3</td>
+        <td class="num">~520</td>
+        <td class="num">7–10 µA</td>
+        <td class="num">300–500 ms</td>
+        <td>Wi-Fi + BLE 5.0</td>
+        <td>Excellent</td>
+      </tr>
+      <tr>
+        <td class="strong">nRF5340</td>
+        <td class="num">~37</td>
+        <td class="num">1.5–2.5 µA</td>
+        <td class="num">1–3 ms</td>
+        <td>BLE 5.4 + 802.15.4</td>
+        <td>Good (Zephyr)</td>
+      </tr>
+      <tr class="highlight">
+        <td class="strong">STM32U5</td>
+        <td class="num">~19</td>
+        <td class="num">0.3 µA</td>
+        <td class="num">5–50 µs</td>
+        <td>None — needs ext.</td>
+        <td>Excellent (CubeIDE)</td>
+      </tr>
+      <tr>
+        <td class="strong">SAMD21-L</td>
+        <td class="num">~50</td>
+        <td class="num">1.5 µA</td>
+        <td class="num">200 µs</td>
+        <td>None — needs ext.</td>
+        <td>Excellent (Arduino)</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div class="chart-wrap">
+    <div class="chart-title">Energy per cycle by MCU (with appropriate radio for each)</div>
+    <div class="chart-sub">ESP32-S3 uses native BLE. STM32U5 and SAMD21-L paired with Si4463 sub-GHz. nRF5340 uses native BLE Coded PHY.</div>
+    <div class="chart-canvas-wrap"><canvas id="mcuChart"></canvas></div>
+  </div>
+  
+  <h3>The recommendation: STM32U5</h3>
+  <p>The STM32U5 wins on three independent criteria that all matter for this application: <strong>sleep current</strong> is 5–10× better than alternatives, <strong>wake time</strong> is essentially instantaneous (eliminating boot-energy waste every cycle), and the <strong>development ecosystem</strong> is mature and well-documented through STM32CubeIDE. The lack of integrated radio is a feature in this context, not a bug — you pair it with the right radio for the link rather than being locked into BLE.</p>
+  
+  <div class="grid-2">
+    <div class="option-card recommended">
+      <span class="option-badge rec">Recommended for leaf</span>
+      <h4>STM32U5 + Si4463</h4>
+      <p class="sub">Cortex-M33 @ 160 MHz with sub-GHz radio</p>
+      <ul>
+        <li>3,600 mJ per cycle</li>
+        <li>14.2 Ah battery for 1 year</li>
+        <li>~50 dB link margin in blade</li>
+        <li>Mature ecosystem, low-cost BOM</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <span class="option-badge alt">Strong alternative</span>
+      <h4>nRF5340 + BLE Coded</h4>
+      <p class="sub">Dual Cortex-M33 with integrated BLE 5.4</p>
+      <ul>
+        <li>6,330 mJ per cycle</li>
+        <li>25 Ah battery for 1 year</li>
+        <li>Marginal link margin in blade</li>
+        <li>Simplest BOM — no external radio</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="power">
+  <div class="section-num">07 / Power budget analysis</div>
+  <h2>Where the energy actually goes.</h2>
+  
+  <p class="lead">For the recommended STM32U5 + Si4463 leaf node, OPUS compression dominates the energy budget at 77%. The radio — historically the worry — contributes only 7%. This means future optimisation should target compression, not communication.</p>
+  
+  <div class="grid-4">
+    <div class="metric-card">
+      <div class="label">Compression</div>
+      <div class="value">2,775</div>
+      <div class="unit">mJ — 77%</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Audio sampling</div>
+      <div class="value">555</div>
+      <div class="unit">mJ — 15%</div>
+    </div>
+    <div class="metric-card accent">
+      <div class="label">Radio TX + ACK</div>
+      <div class="value">247</div>
+      <div class="unit">mJ — 7%</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Everything else</div>
+      <div class="value">23</div>
+      <div class="unit">mJ — 1%</div>
+    </div>
+  </div>
+  
+  <div class="chart-wrap">
+    <div class="chart-title">Leaf node cycle: phase-by-phase energy and current</div>
+    <div class="chart-sub">STM32U5 + Si4463, one full 600-second cycle. Note OPUS compression dominates while radio TX is minor.</div>
+    <div class="chart-canvas-wrap"><canvas id="phaseChart"></canvas></div>
+  </div>
+  
+  <h3>Battery sizing for one-year operation</h3>
+  <table>
+    <thead>
+      <tr><th>Node type</th><th>Energy/day</th><th class="num">For 1 year</th><th class="num">Recommended pack</th><th>Pack life</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight"><td class="strong">Leaf (STM32U5 + Si4463)</td><td>518 J</td><td class="num">14.2 Ah</td><td class="num">20 Ah LiPo</td><td>~17 months</td></tr>
+      <tr><td class="strong">Hub (STM32U5 + HaLow)</td><td>~1,800 J</td><td class="num">49 Ah</td><td class="num">80 Ah LiPo</td><td>~20 months</td></tr>
+      <tr><td>Per blade total</td><td>2,754 J</td><td class="num">75 Ah</td><td class="num">140 Ah</td><td>—</td></tr>
+      <tr class="highlight"><td class="strong">Whole turbine</td><td>8,262 J</td><td class="num">226 Ah</td><td class="num">420 Ah</td><td>—</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="callout callout-warn">
+    <div class="callout-label">Cold weather derating</div>
+    <p>LiPo batteries lose roughly 30% of usable capacity at –20°C. For deployments in cold climates, multiply the recommended pack size by 1.4×, or use Li-SOCl₂ (lithium thionyl chloride) primary cells which maintain capacity down to –55°C. Li-SOCl₂ has higher energy density (~700 Wh/kg vs 250 Wh/kg) but is non-rechargeable.</p>
+  </div>
+  
+  <h3>Sensitivity to cycle interval</h3>
+  <p>Doubling the cycle interval roughly doubles battery life, since most of the energy is spent on active operations (sampling, compression, TX) rather than sleep. This is the single biggest knob you have.</p>
+  
+  <div class="chart-wrap">
+    <div class="chart-title">Battery life vs cycle interval — STM32U5 + Si4463 leaf node</div>
+    <div class="chart-sub">Battery life in days, assuming 20,000 mAh LiPo at 3.7 V. Dashed line marks 1-year target.</div>
+    <div class="chart-canvas-wrap"><canvas id="cycleChart"></canvas></div>
+  </div>
+</section>
+
+
+<section id="system">
+  <div class="section-num">08 / Full system architecture</div>
+  <h2>Putting it all together.</h2>
+  
+  <p class="lead">The final architecture is a two-tier hierarchy: 9 ultra-low-power leaf nodes inside the blades, 3 medium-power hub nodes at the blade roots, and 1 mains-powered base station at the tower foot. Sub-GHz radios handle intra-blade communication; Wi-Fi HaLow handles the tower descent.</p>
+  
+  <div class="diagram-wrap">
+    <svg width="100%" viewBox="0 0 900 720" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      
+      <text x="450" y="30" text-anchor="middle" font-family="Fraunces" font-size="18" font-weight="500" fill="#1a1a1a">Three-blade turbine — complete system</text>
+      
+      <!-- Three blades at top -->
+      <!-- Blade 1 -->
+      <g transform="translate(20, 70)">
+        <rect x="0" y="0" width="270" height="160" rx="12" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="135" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666" letter-spacing="1">BLADE 1 — 100 m</text>
+        
+        <rect x="14" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="44" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 1C</text>
+        <text x="44" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">tip · 95 m</text>
+        
+        <rect x="92" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="122" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 1B</text>
+        <text x="122" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">62 m</text>
+        
+        <rect x="170" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="200" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 1A</text>
+        <text x="200" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">29 m</text>
+        
+        <line x1="74" y1="63" x2="92" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        <line x1="152" y1="63" x2="170" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        
+        <text x="135" y="105" text-anchor="middle" font-family="Inter Tight" font-size="10" fill="#666">Si4463 @ 915 MHz · 33 m hops · ~3.7 s per node</text>
+        
+        <rect x="92" y="115" width="86" height="36" rx="6" fill="#fff" stroke="#b54a2c" stroke-width="1.5"/>
+        <text x="135" y="132" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#b54a2c">HUB 1</text>
+        <text x="135" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">aggregation</text>
+        
+        <line x1="200" y1="84" x2="155" y2="115" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+      </g>
+      
+      <!-- Blade 2 -->
+      <g transform="translate(315, 70)">
+        <rect x="0" y="0" width="270" height="160" rx="12" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="135" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666" letter-spacing="1">BLADE 2 — 100 m</text>
+        
+        <rect x="14" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="44" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 2C</text>
+        <text x="44" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">tip · 95 m</text>
+        
+        <rect x="92" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="122" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 2B</text>
+        <text x="122" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">62 m</text>
+        
+        <rect x="170" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="200" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 2A</text>
+        <text x="200" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">29 m</text>
+        
+        <line x1="74" y1="63" x2="92" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        <line x1="152" y1="63" x2="170" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        
+        <rect x="92" y="115" width="86" height="36" rx="6" fill="#fff" stroke="#b54a2c" stroke-width="1.5"/>
+        <text x="135" y="132" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#b54a2c">HUB 2</text>
+        <text x="135" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">aggregation</text>
+        
+        <line x1="200" y1="84" x2="155" y2="115" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+      </g>
+      
+      <!-- Blade 3 -->
+      <g transform="translate(610, 70)">
+        <rect x="0" y="0" width="270" height="160" rx="12" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="135" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666" letter-spacing="1">BLADE 3 — 100 m</text>
+        
+        <rect x="14" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="44" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 3C</text>
+        <text x="44" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">tip · 95 m</text>
+        
+        <rect x="92" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="122" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 3B</text>
+        <text x="122" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">62 m</text>
+        
+        <rect x="170" y="42" width="60" height="42" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="200" y="60" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#1a1a1a">Node 3A</text>
+        <text x="200" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">29 m</text>
+        
+        <line x1="74" y1="63" x2="92" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        <line x1="152" y1="63" x2="170" y2="63" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+        
+        <rect x="92" y="115" width="86" height="36" rx="6" fill="#fff" stroke="#b54a2c" stroke-width="1.5"/>
+        <text x="135" y="132" text-anchor="middle" font-family="Inter Tight" font-size="11" font-weight="500" fill="#b54a2c">HUB 3</text>
+        <text x="135" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#666">aggregation</text>
+        
+        <line x1="200" y1="84" x2="155" y2="115" stroke="#b54a2c" stroke-width="1" marker-end="url(#arr2)"/>
+      </g>
+      
+      <!-- Tower -->
+      <g transform="translate(0, 260)">
+        <rect x="350" y="0" width="200" height="280" rx="12" fill="#ebe5d4" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="450" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#666" letter-spacing="1">TOWER — 300 m</text>
+        
+        <text x="450" y="60" text-anchor="middle" font-family="Inter Tight" font-size="12" fill="#666" font-style="italic">Wi-Fi HaLow link</text>
+        <text x="450" y="78" text-anchor="middle" font-family="Inter Tight" font-size="11" fill="#4a6b3a">900 MHz · 2 Mbps · ~45 s per blade</text>
+        <text x="450" y="96" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#888">TDMA: hubs transmit sequentially</text>
+        
+        <!-- vertical lines -->
+        <line x1="155" y1="-30" x2="380" y2="240" stroke="#4a6b3a" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arr2)"/>
+        <line x1="450" y1="-30" x2="450" y2="240" stroke="#4a6b3a" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arr2)"/>
+        <line x1="745" y1="-30" x2="520" y2="240" stroke="#4a6b3a" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arr2)"/>
+        
+        <!-- Base station -->
+        <rect x="280" y="240" width="340" height="48" rx="8" fill="#1a1a1a"/>
+        <text x="450" y="260" text-anchor="middle" font-family="Inter Tight" font-size="13" font-weight="500" fill="#f5f1e8">BASE STATION</text>
+        <text x="450" y="278" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#ebe5d4">RPi 4 · HaLow gateway · 4G/Ethernet · mains powered</text>
+      </g>
+      
+      <!-- Legend -->
+      <g transform="translate(50, 580)">
+        <rect x="0" y="0" width="800" height="120" rx="8" fill="none" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="20" y="22" font-family="JetBrains Mono" font-size="10" fill="#666" letter-spacing="1">LEGEND</text>
+        
+        <line x1="20" y1="42" x2="60" y2="42" stroke="#b54a2c" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <text x="72" y="46" font-family="Inter Tight" font-size="12" fill="#1a1a1a">Si4463 sub-GHz · in-blade · 18 mA TX · 50 dB margin</text>
+        
+        <line x1="20" y1="68" x2="60" y2="68" stroke="#4a6b3a" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arr2)"/>
+        <text x="72" y="72" font-family="Inter Tight" font-size="12" fill="#1a1a1a">Wi-Fi HaLow · tower descent · 300 mA TX · ~2 Mbps</text>
+        
+        <rect x="20" y="86" width="20" height="14" rx="3" fill="#fff" stroke="#1a1a1a" stroke-width="0.5"/>
+        <text x="50" y="97" font-family="Inter Tight" font-size="12" fill="#1a1a1a">Leaf node — STM32U5 + Si4463 + 20 Ah LiPo</text>
+        
+        <rect x="450" y="86" width="20" height="14" rx="3" fill="#fff" stroke="#b54a2c" stroke-width="1.5"/>
+        <text x="480" y="97" font-family="Inter Tight" font-size="12" fill="#1a1a1a">Hub — STM32U5 + HaLow + 80 Ah LiPo</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Complete two-tier system architecture. Nine leaf nodes feed three blade hubs via sub-GHz star topology. Three hubs feed the base station via Wi-Fi HaLow down the tower.</div>
+  </div>
+  
+  <h3>System timing diagram — one 10-minute cycle</h3>
+  <div class="spec">t = 0 s     │ All 9 leaf nodes wake simultaneously, begin sampling
+t = 30 s    │ Sampling complete, begin OPUS compression (parallel)
+t = 60 s    │ Compression complete, leaves prepare for TX
+t = 60–73 s │ Blade 1: nodes 1A, 1B, 1C transmit to Hub 1 (TDMA, 4 s each)
+t = 73–86 s │ Blade 2: nodes 2A, 2B, 2C transmit to Hub 2
+t = 86–99 s │ Blade 3: nodes 3A, 3B, 3C transmit to Hub 3
+t = 99 s    │ All leaves sleep. Hubs prepare HaLow link.
+t = 99–144s │ Hubs transmit aggregated data sequentially over HaLow
+t = 144 s   │ Base station has all data. Hubs sleep.
+t = 600 s   │ Next cycle wake — hub broadcasts time sync beacon</div>
+  
+  <p>Total active time: <strong>~144 seconds out of 600</strong> (24% active for hubs, ~16% for leaves including sleep gaps). The remaining ~7.5 minutes is available as margin for retries, weather, and clock drift between cycles.</p>
+</section>
+
+<section id="practical">
+  <div class="section-num">09 / Practical concerns</div>
+  <h2>The wind turbine perspective — vibration, rotation, weather, access.</h2>
+  
+  <p class="lead">A wind turbine is one of the most hostile environments engineered devices regularly survive. The blade tip moves at up to 300 km/h, the structure flexes continuously, temperature swings 60°C between seasons, and physical access requires climbing or specialised rope work. The design must account for all of this.</p>
+  
+  <h3>Rotation effects on the RF link</h3>
+  <table>
+    <thead>
+      <tr><th>Effect</th><th>Magnitude</th><th>Mitigation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Doppler shift</td>
+        <td class="num">~25 Hz @ 915 MHz</td>
+        <td>Negligible — well within carrier tolerance</td>
+      </tr>
+      <tr>
+        <td>Multipath variation</td>
+        <td>Continuous</td>
+        <td>FEC coding, automatic retry with backoff</td>
+      </tr>
+      <tr>
+        <td>Tower body blocking</td>
+        <td>~3 s per rotation</td>
+        <td>Buffer + retry; never align TX with tower pass</td>
+      </tr>
+      <tr>
+        <td>Antenna orientation</td>
+        <td>±360°</td>
+        <td>Circularly-polarised antenna or dual orthogonal monopoles</td>
+      </tr>
+      <tr>
+        <td>Centrifugal force at tip</td>
+        <td>~20 g sustained</td>
+        <td>Conformal coating, captive fasteners, no socketed components</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <h3>Mechanical &amp; environmental design checklist</h3>
+  <div class="grid-2">
+    <div class="option-card">
+      <h4>Enclosure &amp; mounting</h4>
+      <ul>
+        <li>IP67 minimum (dust-tight, submerge-rated)</li>
+        <li>UV-stable ABS or polycarbonate</li>
+        <li>Adhesive structural bond, not screws into composite</li>
+        <li>Hold-down strap as redundant retention</li>
+        <li>Total mass &lt; 500 g per node to minimise centrifugal load</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <h4>Electrical &amp; PCB</h4>
+      <ul>
+        <li>Conformal coat (acrylic or urethane) — vibration + humidity</li>
+        <li>All connectors locking or soldered (Molex Micro-Lock, JST-GH)</li>
+        <li>No through-hole sockets; only surface-mount</li>
+        <li>Battery secured mechanically, not just electrically</li>
+        <li>TVS diodes on all I/O — lightning is a real concern at altitude</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <h4>Antenna placement</h4>
+      <ul>
+        <li>Mount on inner trailing-edge wall (away from CFRP spar)</li>
+        <li>15 mm minimum standoff from any conductive material</li>
+        <li>Hub antenna: external chip antenna on dedicated keepout PCB area</li>
+        <li>HaLow antenna at blade root pointing down the tower</li>
+        <li>Optional: external short whip on hub for HaLow link</li>
+      </ul>
+    </div>
+    <div class="option-card">
+      <h4>Time synchronisation</h4>
+      <ul>
+        <li>GPS at base station provides UTC reference</li>
+        <li>Hub broadcasts 1 ms sync beacon at cycle start</li>
+        <li>Crystal drift &lt; 10 ppm = 6 ms over 10 min</li>
+        <li>500 ms advertising window accommodates worst-case drift</li>
+        <li>Cross-blade timestamp accuracy: ~100 µs achievable</li>
+      </ul>
+    </div>
+  </div>
+  
+  <h3>Reliability and recovery strategy</h3>
+  <p>The single biggest robustness investment is <strong>store-and-forward</strong>: every node has local flash or microSD storage holding at least 7 days of compressed data. If any link fails — radio, hub, base, or backhaul — data persists locally and re-transmits on the next successful cycle. The system tolerates entire days of communication outage without data loss.</p>
+  
+  <div class="callout callout-key">
+    <div class="callout-label">Failure scenarios &amp; outcomes</div>
+    <p><strong>Leaf node radio fails</strong>: Data accumulates locally up to 7 days, alarms via missing heartbeat. <strong>Hub fails</strong>: All 3 leaves accumulate locally; replacement hub can be deployed without data loss. <strong>HaLow link fails</strong>: Hub buffers up to 2 days of aggregated data. <strong>Base station fails</strong>: System continues collecting; data delivered when base recovers. <strong>Battery depleted</strong>: Last 7 days of data accessible via direct USB/SD retrieval during maintenance.</p>
+  </div>
+  
+  <h3>Energy harvesting supplement (optional)</h3>
+  <p>A vibration-powered piezoelectric harvester mounted on the blade can supplement the battery budget. Typical output in a wind turbine blade is 5–50 mW continuous depending on placement and wind conditions. Even a conservative 20 mW average provides ~1,700 J/day — covering roughly 15% of a leaf node's energy budget and extending pack life by approximately the same fraction.</p>
+  
+  <h3>Cost estimate (BOM, single node)</h3>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Part</th><th class="num">Qty</th><th class="num">Unit cost</th><th class="num">Total</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>MCU</td><td>STM32U585</td><td class="num">1</td><td class="num">$8.50</td><td class="num">$8.50</td></tr>
+      <tr><td>Sub-GHz radio</td><td>Si4463</td><td class="num">1</td><td class="num">$2.20</td><td class="num">$2.20</td></tr>
+      <tr><td>MEMS microphone</td><td>ICS-43434 PDM</td><td class="num">1</td><td class="num">$3.40</td><td class="num">$3.40</td></tr>
+      <tr><td>IMU</td><td>ICM-42688-P</td><td class="num">1</td><td class="num">$7.80</td><td class="num">$7.80</td></tr>
+      <tr><td>microSD card</td><td>8 GB industrial</td><td class="num">1</td><td class="num">$6.00</td><td class="num">$6.00</td></tr>
+      <tr><td>Battery</td><td>20 Ah LiPo 1S</td><td class="num">1</td><td class="num">$22.00</td><td class="num">$22.00</td></tr>
+      <tr><td>PCB + enclosure</td><td>Custom IP67</td><td class="num">1</td><td class="num">$18.00</td><td class="num">$18.00</td></tr>
+      <tr><td>Passives, antenna, misc</td><td>—</td><td class="num">—</td><td class="num">$8.00</td><td class="num">$8.00</td></tr>
+      <tr class="highlight"><td class="strong">Leaf node total (qty 100+)</td><td>—</td><td>—</td><td>—</td><td class="num strong">~$76</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="calc" style="background: var(--cream);">
+  <div class="section-num">10 / Interactive calculator</div>
+  <h2>A full power-budget calculator for further study.</h2>
+  
+  <p class="lead">The standalone calculator is provided as a separate HTML file with no dependencies, suitable for use in any modern browser. It lets you tune every parameter discussed in this report and instantly see the impact on energy per cycle, battery life, and 1-year battery requirements.</p>
+  
+  <div class="callout callout-key">
+    <div class="callout-label">Companion file</div>
+    <p>Open <code>calculator.html</code> in any browser. Adjust MCU, radio, duty cycle, sample rate, compression, link budget, and battery pack size — all parameters update the energy budget in real time.</p>
+  </div>
+  
+  <h3>What the calculator covers</h3>
+  <ul style="margin: 16px 0 24px 24px; font-size: 15px;">
+    <li>4 MCU options with realistic datasheet values</li>
+    <li>6 radio options including BLE Coded PHY, Si4463, LoRa, HaLow</li>
+    <li>Sample rate and compression scheme selection</li>
+    <li>Adjustable duty cycle from 5 to 120 minutes</li>
+    <li>Battery pack sizing and life estimation</li>
+    <li>Hub aggregation modelling</li>
+    <li>Whole-system battery total across 9 leaves + 3 hubs</li>
+    <li>Cold weather derating</li>
+    <li>Optional energy harvesting contribution</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Wind Turbine DAQ — System Architecture Report · Generated with iterative analysis · All numerical values derived from manufacturer datasheets and standard link budget calculations · Field validation recommended before production deployment</p>
+</footer>
+
+<script>
+// Chart.js global config
+Chart.defaults.font.family = "'Inter Tight', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#1a1a1a';
+Chart.defaults.borderColor = 'rgba(26,26,26,0.1)';
+
+const COLORS = {
+  rust: '#b54a2c',
+  moss: '#4a6b3a',
+  slate: '#2c3e50',
+  gold: '#c89d3a',
+  ink: '#1a1a1a',
+  paper: '#f5f1e8',
+  mute: 'rgba(26,26,26,0.4)'
+};
+
+new Chart(document.getElementById('radioChart'), {
+  type: 'bar',
+  data: {
+    labels: ['LoRa SF7', 'BLE Coded S=8', 'BLE Coded S=2', 'BLE 1M', 'BLE 2M', 'nRF24 2M', 'Si4463 500k', 'Si4463 1M', 'HaLow MCS3'],
+    datasets: [{
+      label: 'TX energy (mJ)',
+      data: [25000, 370, 115, 50, 25, 40, 233, 135, 5400],
+      backgroundColor: ['#888', '#888', '#888', '#888', '#888', '#888', '#4a6b3a', '#4a6b3a', '#888'],
+      borderWidth: 0,
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.x.toLocaleString()} mJ`
+        }
+      }
+    },
+    scales: {
+      x: { 
+        type: 'logarithmic',
+        ticks: { callback: v => v >= 1000 ? (v/1000) + 'k' : v },
+        title: { display: true, text: 'Energy (mJ, log scale)' }
+      },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('mcuChart'), {
+  type: 'bar',
+  data: {
+    labels: ['ESP32-S3\n+ BLE', 'nRF5340\n+ BLE Coded', 'SAMD21-L\n+ Si4463', 'STM32U5\n+ Si4463'],
+    datasets: [
+      { label: 'Compression', data: [10990, 4558, 3497, 2775], backgroundColor: '#534AB7', stack: 's' },
+      { label: 'Audio sampling', data: [14430, 1110, 777, 555], backgroundColor: '#378ADD', stack: 's' },
+      { label: 'Radio TX', data: [10730, 370, 233, 233], backgroundColor: '#b54a2c', stack: 's' },
+      { label: 'Boot + other', data: [2183, 292, 579, 37], backgroundColor: '#888', stack: 's' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 12, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} mJ` } }
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, title: { display: true, text: 'Energy per cycle (mJ)' } }
+    }
+  }
+});
+
+new Chart(document.getElementById('phaseChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Sleep', 'Wake', 'Sampling', 'Flash', 'Compression', 'Radio prep', 'Radio TX', 'ACK RX', 'Shutdown'],
+    datasets: [{
+      label: 'Energy (mJ)',
+      data: [2.4, 0.02, 555, 14.8, 2775, 2.8, 233, 14.4, 2.2],
+      backgroundColor: ['#888','#888','#378ADD','#185FA5','#534AB7','#b54a2c','#b54a2c','#b54a2c','#888'],
+      borderWidth: 0, borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString()} mJ (${(ctx.parsed.y/3600*100).toFixed(1)}%)` } }
+    },
+    scales: { y: { title: { display: true, text: 'Energy (mJ)' } } }
+  }
+});
+
+// Cycle interval sensitivity — 20 Ah pack, 3600 mJ per cycle
+const ENERGY_PER_CYCLE_J = 3.6;
+const BATTERY_J = 20000 * 0.001 * 3.7 * 3600;
+const intervals = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+const cycleEnergies = intervals.map(min => {
+  const cyclesPerDay = 86400 / (min * 60);
+  const energyPerDay = ENERGY_PER_CYCLE_J * cyclesPerDay;
+  return BATTERY_J / energyPerDay;
+});
+new Chart(document.getElementById('cycleChart'), {
+  type: 'line',
+  data: {
+    labels: intervals.map(i => i + ' min'),
+    datasets: [{
+      label: 'Battery life (days)',
+      data: cycleEnergies,
+      borderColor: '#4a6b3a',
+      backgroundColor: 'rgba(74,107,58,0.1)',
+      borderWidth: 2,
+      tension: 0.3,
+      pointRadius: 5,
+      pointBackgroundColor: '#4a6b3a',
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${Math.round(ctx.parsed.y)} days = ${(ctx.parsed.y/30).toFixed(1)} months` } },
+      annotation: false
+    },
+    scales: {
+      x: { title: { display: true, text: 'Cycle interval' } },
+      y: { 
+        title: { display: true, text: 'Battery life (days)' },
+        beginAtZero: true
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>
