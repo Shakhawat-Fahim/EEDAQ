@@ -279,8 +279,9 @@ footer{padding:18px 28px;border-top:1px solid var(--line);background:var(--cream
 
 <div class="ctrl-section-title">Battery &amp; environment</div>
 <div class="ctrl-group"><div class="ctrl-label"><span>Leaf battery pack</span><span class="val" id="vBatt">20,000 mAh</span></div><input type="range" id="iBatt" min="1000" max="80000" step="1000" value="20000"></div>
-<div class="ctrl-group"><div class="ctrl-label"><span>Min temp</span><span class="val" id="vTemp">+20 °C</span></div><input type="range" id="iTemp" min="-40" max="40" step="5" value="20"></div>
-<div class="ctrl-group"><div class="ctrl-label"><span>Energy harvesting</span><span class="val" id="vHarv">0 mW</span></div><input type="range" id="iHarv" min="0" max="200" step="5" value="0"></div>
+<div class="ctrl-group"><div class="ctrl-label"><span>Min temp</span><span class="val" id="vTemp">+20 °C</span></div><input type="range" id="iTemp" min="-40" max="40" step="1" value="20"></div>
+<div class="ctrl-group"><div class="ctrl-label"><span>Energy harvesting (avg)</span><span class="val" id="vHarv">0 mW</span></div><input type="range" id="iHarv" min="0" max="200" step="1" value="0">
+<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4">Average power delivered <em>continuously</em> across the day. 1 mW × 24 h = 86.4 J/day offset against battery drain. E.g. a 100 mW solar panel that produces full power 6 h/day → enter 25 mW average.</div></div>
 <div class="ctrl-group"><div class="ctrl-label"><span>Self-discharge</span><span class="val" id="vSelfD">2 %/yr</span></div><input type="range" id="iSelfD" min="0" max="15" step="1" value="2"></div>
 <div class="ctrl-group"><div class="ctrl-label"><span>Retry factor</span><span class="val" id="vRetry">1.0×</span></div><input type="range" id="iRetry" min="10" max="50" step="1" value="10"></div>
 </div>
@@ -343,14 +344,21 @@ footer{padding:18px 28px;border-top:1px solid var(--line);background:var(--cream
 <button class="opt" data-mcu="samd21">SAMD21-L</button>
 </div>
 
-<div class="ctrl-section-title">Inbound radio (from leaves)</div>
+<div class="ctrl-section-title">Inbound radio (from leaves) — must match leaf radio</div>
 <div class="opts single" id="hubInOpts">
-<button class="opt" data-in="ble_1m_0dbm">BLE 5 1M @ 0 dBm</button>
+<button class="opt" data-in="ble_1m_0dbm">BLE 5 1M @ 0 dBm (nRF5340)</button>
+<button class="opt" data-in="ble_1m_pa">BLE 5 1M @ +8 dBm (nRF5340+PA)</button>
 <button class="opt" data-in="ble_coded_0dbm">BLE 5 Coded S=8 @ 0 dBm</button>
-<button class="opt" data-in="nrf24_0dbm">nRF24L01+</button>
-<button class="opt sel" data-in="si4463_13dbm">Si4463 @ +13 dBm</button>
-<button class="opt" data-in="si4463_20dbm">Si4463 @ +20 dBm</button>
-<button class="opt" data-in="sx1262_14dbm">LoRa SX1262</button>
+<button class="opt" data-in="ble_coded_pa">BLE 5 Coded S=8 @ +8 dBm</button>
+<button class="opt" data-in="nrf24_0dbm">nRF24L01+ @ 0 dBm</button>
+<button class="opt" data-in="si4463_10dbm">Si4463 @ +10 dBm, 500k</button>
+<button class="opt sel" data-in="si4463_13dbm">Si4463 @ +13 dBm, 500k</button>
+<button class="opt" data-in="si4463_20dbm">Si4463 @ +20 dBm, 500k</button>
+<button class="opt" data-in="si4463_100k">Si4463 @ +13 dBm, 100k</button>
+<button class="opt" data-in="sx1262_14dbm">LoRa SX1262 @ +14 dBm SF7</button>
+<button class="opt" data-in="sx1262_22dbm">LoRa SX1262 @ +22 dBm SF12</button>
+<button class="opt" data-in="halow_8dbm">Wi-Fi HaLow @ +8 dBm (MM6108)</button>
+<button class="opt" data-in="halow_21dbm">Wi-Fi HaLow @ +21 dBm (MM6108+FEM)</button>
 </div>
 
 <div class="ctrl-section-title">Outbound protocol (to base, 300 m down tower)</div>
@@ -370,7 +378,7 @@ footer{padding:18px 28px;border-top:1px solid var(--line);background:var(--cream
 <div class="ctrl-group"><div class="ctrl-label"><span>Aggregation time</span><span class="val" id="vHubAgg">3 s</span></div><input type="range" id="iHubAgg" min="0" max="30" step="1" value="3"></div>
 <div class="ctrl-group"><div class="ctrl-label"><span>Outbound link-up</span><span class="val" id="vHubLU">2 s</span></div><input type="range" id="iHubLU" min="0" max="20" step="1" value="2"></div>
 <div class="ctrl-group"><div class="ctrl-label"><span>Hub battery pack</span><span class="val" id="vHubBatt">80,000 mAh</span></div><input type="range" id="iHubBatt" min="10000" max="300000" step="5000" value="80000"></div>
-<div class="ctrl-group"><div class="ctrl-label"><span>Hub harvesting</span><span class="val" id="vHubHarv">0 mW</span></div><input type="range" id="iHubHarv" min="0" max="500" step="10" value="0"></div>
+<div class="ctrl-group"><div class="ctrl-label"><span>Hub harvesting (avg)</span><span class="val" id="vHubHarv">0 mW</span></div><input type="range" id="iHubHarv" min="0" max="500" step="1" value="0"></div>
 </div>
 
 <div>
@@ -661,14 +669,14 @@ const RADIOS = {
 
 // Outbound protocols (hub-to-base options)
 const OUTBOUND = {
-  halow_21dbm: { name:'Wi-Fi HaLow +21 dBm', part:'MM6108+FEM', eff_kbps: 2000, current_mA: 320, idle_mA: 8, overhead_s: 2, sens_dBm: -98, sources:['s8'] },
-  halow_8dbm:  { name:'Wi-Fi HaLow +8 dBm', part:'MM6108', eff_kbps: 2000, current_mA: 175, idle_mA: 8, overhead_s: 2, sens_dBm: -98, sources:['s7'] },
-  sx1262_22dbm:{ name:'LoRa SX1262 +22 dBm', part:'Semtech SX1262', eff_kbps: 5, current_mA: 118, idle_mA: 0.002, overhead_s: 5, sens_dBm: -137, sources:['s5','s6'] },
-  wifi24:      { name:'Wi-Fi 2.4 GHz', part:'ATWINC1500-MR210', eff_kbps: 20000, current_mA: 268, idle_mA: 80, overhead_s: 4, sens_dBm: -89, sources:[] },
-  cellular_lte:{ name:'Cellular LTE-M', part:'modem typical', eff_kbps: 300, current_mA: 450, idle_mA: 5, overhead_s: 8, sens_dBm: -105, sources:[] },
-  cellular_nb: { name:'Cellular NB-IoT', part:'modem typical', eff_kbps: 50, current_mA: 220, idle_mA: 3, overhead_s: 12, sens_dBm: -120, sources:[] },
-  lorawan:     { name:'LoRaWAN', part:'SX1262 + stack', eff_kbps: 5, current_mA: 118, idle_mA: 0.002, overhead_s: 3, sens_dBm: -137, sources:['s5'] },
-  ethernet:    { name:'Wired backhaul', part:'PoE/slip-ring', eff_kbps: 100000, current_mA: 80, idle_mA: 30, overhead_s: 0.5, sens_dBm: 0, sources:[] }
+  halow_21dbm: { name:'Wi-Fi HaLow +21 dBm', part:'MM6108+FEM', freq:'900 MHz', modulation:'OFDM 802.11ah', eff_kbps: 2000, tx_dbm: 21, current_mA: 320, rx_mA: 60, idle_mA: 8, overhead_s: 2, sens_dBm: -98, sources:['s8'] },
+  halow_8dbm:  { name:'Wi-Fi HaLow +8 dBm', part:'MM6108 (chip only)', freq:'900 MHz', modulation:'OFDM 802.11ah', eff_kbps: 2000, tx_dbm: 8, current_mA: 175, rx_mA: 60, idle_mA: 8, overhead_s: 2, sens_dBm: -98, sources:['s7'] },
+  sx1262_22dbm:{ name:'LoRa SX1262 +22 dBm', part:'Semtech SX1262', freq:'915 MHz', modulation:'LoRa CSS SF12', eff_kbps: 5, tx_dbm: 22, current_mA: 118, rx_mA: 4.2, idle_mA: 0.002, overhead_s: 5, sens_dBm: -137, sources:['s5','s6'] },
+  wifi24:      { name:'Wi-Fi 2.4 GHz', part:'ATWINC1500-MR210', freq:'2.4 GHz', modulation:'OFDM 802.11n', eff_kbps: 20000, tx_dbm: 17, current_mA: 268, rx_mA: 61, idle_mA: 80, overhead_s: 4, sens_dBm: -89, sources:[] },
+  cellular_lte:{ name:'Cellular LTE-M', part:'modem typical', freq:'700–2100 MHz', modulation:'LTE Cat-M1', eff_kbps: 300, tx_dbm: 23, current_mA: 450, rx_mA: 90, idle_mA: 5, overhead_s: 8, sens_dBm: -105, sources:[] },
+  cellular_nb: { name:'Cellular NB-IoT', part:'modem typical', freq:'700–2100 MHz', modulation:'NB-IoT Cat-NB1', eff_kbps: 50, tx_dbm: 23, current_mA: 220, rx_mA: 50, idle_mA: 3, overhead_s: 12, sens_dBm: -120, sources:[] },
+  lorawan:     { name:'LoRaWAN', part:'SX1262 + LoRaWAN stack', freq:'915 MHz', modulation:'LoRa CSS', eff_kbps: 5, tx_dbm: 22, current_mA: 118, rx_mA: 4.2, idle_mA: 0.002, overhead_s: 3, sens_dBm: -137, sources:['s5'] },
+  ethernet:    { name:'Wired backhaul', part:'PoE/slip-ring', freq:'wired', modulation:'Ethernet', eff_kbps: 100000, tx_dbm: 0, current_mA: 80, rx_mA: 80, idle_mA: 30, overhead_s: 0.5, sens_dBm: 0, sources:[] }
 };
 
 // MCU profiles. Values cross-checked against ST/Nordic/Espressif datasheets
@@ -891,15 +899,17 @@ function renderRadioSpecPanel(elemId, radioKey, isOutbound) {
         <div class="radio-spec-part">${r.part}</div>
       </div>
       <div class="radio-modulation-tags">
-        ${!isOutbound ? `<span class="mod-tag">${r.freq}</span><span class="mod-tag">${r.modulation}</span>` : `<span class="mod-tag">Outbound (300m down tower)</span>`}
+        ${r.freq ? `<span class="mod-tag">${r.freq}</span>` : ''}
+        ${r.modulation ? `<span class="mod-tag">${r.modulation}</span>` : ''}
+        ${isOutbound ? `<span class="mod-tag">Outbound (300m down tower)</span>` : ''}
       </div>
     </div>
     <div class="radio-spec-grid">
-      <div class="spec-cell highlight"><div class="lbl">TX power</div><div class="v">${isOutbound ? '+'+(r.tx_dbm||'?') : (r.tx_dbm >= 0 ? '+' : '')+r.tx_dbm}</div><div class="u">dBm</div></div>
+      <div class="spec-cell highlight"><div class="lbl">TX power</div><div class="v">${r.tx_dbm > 0 ? '+' + r.tx_dbm : r.tx_dbm}</div><div class="u">dBm</div></div>
       <div class="spec-cell highlight"><div class="lbl">TX current</div><div class="v">${r.current_mA || r.tx_mA}</div><div class="u">mA @ supply</div></div>
       <div class="spec-cell"><div class="lbl">RX current</div><div class="v">${r.rx_mA || '—'}</div><div class="u">mA</div></div>
       <div class="spec-cell"><div class="lbl">Sensitivity</div><div class="v">${r.sens_dBm}</div><div class="u">dBm</div></div>
-      <div class="spec-cell"><div class="lbl">Idle current</div><div class="v">${(r.idle_mA*1000).toFixed(r.idle_mA<0.01?1:0)}</div><div class="u">µA</div></div>
+      <div class="spec-cell"><div class="lbl">Idle current</div><div class="v">${r.idle_mA >= 1 ? r.idle_mA.toFixed(1) : (r.idle_mA*1000).toFixed(r.idle_mA<0.01?1:0)}</div><div class="u">${r.idle_mA >= 1 ? 'mA' : 'µA'}</div></div>
       <div class="spec-cell"><div class="lbl">Data rate (PHY)</div><div class="v">${(r.datarate_phy||r.eff_kbps) >= 1000 ? ((r.datarate_phy||r.eff_kbps)/1000).toFixed(1) + ' Mbps' : (r.datarate_phy||r.eff_kbps) + ' kbps'}</div><div class="u">over the air</div></div>
       <div class="spec-cell"><div class="lbl">Effective rate</div><div class="v">${(r.datarate_eff||r.eff_kbps) >= 1000 ? ((r.datarate_eff||r.eff_kbps)/1000).toFixed(1) + ' Mbps' : (r.datarate_eff||r.eff_kbps) + ' kbps'}</div><div class="u">after overhead</div></div>
       <div class="spec-cell"><div class="lbl">Link budget</div><div class="v">${(r.tx_dbm||0) - r.sens_dBm}</div><div class="u">dB total</div></div>
